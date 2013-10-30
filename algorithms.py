@@ -2,9 +2,7 @@ import numpy as np
 from time import sleep
 
 
-
 def getNextPrime(M=1):
-    
     def is_prime(n):
         """ check if n is prime"""
         i = 2
@@ -48,10 +46,14 @@ class Rendezvous():
     def printSequence(self):
         print "Current rendezvous sequence (len=%d) for %d channels:" % (len(self.sequence), self.nr_of_channels)
         for i in self.sequence:
-            print i,
+            print "%d " % i,
+        print ""
+
+    #def trace(self, slot=0, message=''):
+    #    if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
         
-    def trace(self, slot=0, message=''):
-        if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)        
+    def trace(self, message=''):
+        if self.verbose: print "   %s:\t%s" % (self.name, message)           
 
     def __str__(self):
         return "%s is!!!" % (self.name)
@@ -161,55 +163,66 @@ class SequenceRendezvous(Rendezvous):
         # finally return sequence
         return sequence
 
-    def printSequence(self):
-        print "Current rendezvous sequence for %d channels:" % self.nr_of_channels
-        for i in self.sequence:
-            print "%d " % i,
-        print ""
-
 
 class JSHoppingRendezvous(Rendezvous):
-    def __init__(self, nr_of_channels):
-        Rendezvous.__init__(self, "JSHopping", nr_of_channels)
-        self.sequence = self.createSequence()
+    def __init__(self, nr_of_channels, verbose):
+        Rendezvous.__init__(self, "JSHopping", nr_of_channels, verbose)
+        
+        # initialize algorithm
+        self.M = int(nr_of_channels)
+        self.P = getNextPrime(self.M)
+        self.r = np.random.randint(1, self.M + 1)
+        self.i = np.random.randint(1, self.P + 1)
+        self.t = 0 # current time slot
+        #self.test1()
+
+    # Simple functional test using the parameter given in the paper
+    def test(self):
+        print "JSPattern test"
+        M = 4
+        r = 1
+        i = 3
+        P = getNextPrime(M)
+        round = self.JSHopping(M, P, r, i)
+        print round
+
+    def update_r(self):
+        self.r = ((self.r + 1) % (self.M + 1))
+        if self.r == 0: self.r = 1
+        self.trace("New r: %d" % self.r)
+
+    def update_i(self):
+        self.i = ((self.i + 1) % (self.M + 1))
+        if self.i == 0: self.i = 1
+        self.trace("New i: %d" % self.i)
     
-    """ this code sequence generates a full hopping sequence with 3*P^2*M slots """
-    def createSequence(self):
-        sequence = []
+    # Just call JumpStay here
+    def getNextIndex(self):
+        c = self.JumpStay()
+        # in simulation, channels start with index 0, do remapping
+        c -= 1
+        return c
         
-        # use the same parameter names for convinience 
-        M = self.nr_of_channels
-        P = self.getNextPrime(M)
-
-        # i remains the same for 3*M*P time slots [1,P], round-robin afterwards (note, index here starts with 0)
-        i = int(uniform(0, P - 1)) # step-length for the outer loop
-        # r remains the same in each round [1,M], round-robin afterwards (note, index here starts with 0)
-        r = int(uniform(0, M - 1)) # step-length for the inner loop and channel index for stay
-
-        for l in xrange(P):
-            # loop P times
-            #print "i: %d" % (i + 1)
-            for s in xrange(M):
-                # loop M times
-                #print "  r: %d" % (r + 1)
-                round = self.JSHopping(M, P, r + 1, i + 1) # create one round, adjust index numbers
-                sequence.extend(round)
-                #print round
-                r = (r + 1) % M
-                
-            i = (i + 1) % P
+    # Technically, this is the inner loop of the JS_2 algorithm
+    def JumpStay(self):
+        # Update r every 3*P time slots
+        if (self.t % (3 * self.P)) == 0:
+            self.trace("Update r in this round")
+            self.update_r()
+        # Update i every 3*M*P slots
+        if (self.t % (3 * self.M * self.P)) == 0:
+            self.trace("Update i in this round")
+            self.update_i()
         
-        # cleanup sequence to make sure the channel index starts with 0        
-        for i in xrange(len(sequence)):
-            sequence[i] = sequence[i] - 1
-        
-        #print sequence
-        
-        # finally return sequence
-        return sequence
+        # get channel for this specific slot
+        c = self.JSHopping(self.M, self.P, self.r, self.i, self.t)
+        self.trace("Slot: %d" % self.t)
+        self.trace("Channel: %d" % c)
+        self.t += 1 # increment slot counter
+        return c
 
     # Generate one round JS hopping sequence for the given paramaters
-    def JSHopping(self, M, P, r, i):        
+    def JSHopping(self, M, P, r, i, slot=-1):
         nextround = []
         for t in range(3*P):
             t = t % (3*P)   # each round takes 3P timeslots
@@ -223,5 +236,21 @@ class JSHoppingRendezvous(Rendezvous):
                 l = j
                 j = ((j - 1) % M) + 1 # remapping
                 
-            nextround.append(j)
+            nextround.append(int(j))
+        if len(nextround) != 3*P:
+            print "ERROR!"
+
+        # return specific slot if t is given, return the whole round otherwise
+        self.trace(nextround)
+        if slot >= 0:
+            # wrap around 3*P cause slot can get bigger than that
+            slot = (slot) % (3*P)
+            return nextround[slot]
         return nextround
+
+
+class ExtendedJSHoppingRendezvous(Rendezvous):
+    def __init__(self, nr_of_channels):
+        Rendezvous.__init__(self, "EJS", nr_of_channels)
+        self.sequence = self.createSequence()
+        #print self.printSequence()

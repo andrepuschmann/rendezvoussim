@@ -50,11 +50,10 @@ class Node():
             self.algorithm = SequenceRendezvous(self.no_channels, False)
             #self.algorithm = SequenceRendezvous(self.no_channels, True)
             self.algorithm.printSequence()
-        
         elif "modularclock" in algorithm:
             self.algorithm = ModularClockRendezvous(self.no_channels, verbose)
         elif "jumpstay" in algorithm:
-            self.algorithm = JSHoppingRendezvous(self.no_channels)
+            self.algorithm = JSHoppingRendezvous(self.no_channels, verbose)
         else:
             print "Rendezvous algorithm %s is not supported." % (algorithm)
             sys.exit()        
@@ -63,6 +62,10 @@ class Node():
         self.trace(slot, "Determine next channel ...")
         r = self.algorithm.getNextIndex()
         self.trace(slot, "Next channel has index %d" % (r))
+        # check validity
+        if r > (self.no_channels - 1):
+            print "Error, too large channel index"
+            sys.exit()
         return self.channels[r]
         
     def trace(self, slot, message):
