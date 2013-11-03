@@ -48,9 +48,6 @@ class Rendezvous():
         for i in self.sequence:
             print "%d " % i,
         print ""
-
-    #def trace(self, slot=0, message=''):
-    #    if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
         
     def trace(self, message=''):
         if self.verbose: print "   %s:\t%s" % (self.name, message)           
@@ -106,11 +103,6 @@ class ModularClockRendezvous(Rendezvous):
             self.trace("c: %d" % c)
         self.j_old = j_new # overwrite old value
         return c
-        
-    def trace(self, message=''):
-        if self.verbose: print "   %s:\t%s" % (self.name, message)          
-
-
 
 class SequenceRendezvous(Rendezvous):
     def __init__(self, nr_of_channels, use_preset=False):

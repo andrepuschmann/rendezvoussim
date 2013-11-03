@@ -37,6 +37,9 @@ class MinMaxMonitor():
 class Channel():
     def __init__(self, name='Default channel'):
         self.name = name
+        
+    def getName(self):
+        return self.name
 
 class Node():
     def __init__(self, name='Default node', algorithm=None, channels=None, verbose=True):
@@ -58,6 +61,14 @@ class Node():
             print "Rendezvous algorithm %s is not supported." % (algorithm)
             sys.exit()        
 
+        self.printChannels()
+
+    def printChannels(self):
+        self.trace(0, "My channels: %d" % len(self.channels))
+        for i in self.channels:
+            self.trace(message="  %s" % i.getName())
+
+
     def getNextChannel(self, slot):
         self.trace(slot, "Determine next channel ...")
         r = self.algorithm.getNextIndex()
@@ -68,7 +79,7 @@ class Node():
             sys.exit()
         return self.channels[r]
         
-    def trace(self, slot, message):
+    def trace(self, slot=0, message=''):
         if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
         
 
@@ -81,6 +92,48 @@ def isEqual(iterator):
          return True
 
 
+def createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose):
+    nodes = []
+    
+    # Create the channels and nodes
+    if model == "sync":
+        channels = []
+        # All nodes have all channels in common
+        for i in range(num_channels):
+            channels.append(Channel('Channel %d' % i))
+        for n in range(num_nodes):
+            nodes.append(Node('Node %d' % n, algorithm, channels, verbose))
+        # debug
+        #for i in channels:
+        #    print "%s" % i.name
+
+    elif model == "async":
+        common_channels = []
+        created_channels = 0
+        # Create common channels first
+        for i in range(num_overlap_channels):
+            common_channels.append(Channel('Channel %d' % created_channels))
+            created_channels += 1
+      
+        # Create individual channels for each user
+        for n in range(num_nodes):
+            channels = []
+            channels += common_channels # start with common channels first
+            # create remaining channels
+            num_nonoverlap_channels = num_channels - num_overlap_channels
+            for i in range(num_nonoverlap_channels):
+                channels.append(Channel('Channel %d' % created_channels))
+                created_channels += 1
+            # finally create node 
+            nodes.append(Node('Node %d' % n, algorithm, channels, verbose))
+            
+        #print "num_channels: %d" % num_channels
+        #print "num_overlap_channels: %d" % num_overlap_channels
+        #print "Created channels: %d" % created_channels
+
+    return nodes
+
+
 def main():
     usage = "usage: %prog [options] arg"
     parser = OptionParser(usage)
@@ -88,6 +141,10 @@ def main():
                       help="Which rendezvous algorithm to simulate")
     parser.add_option("-c", "--channels", dest="channels", default=5,
                       help="How many channels are available")
+    parser.add_option("-m", "--model", dest="model", default="sync",
+                      help="Which channel model to use (sync or async)")
+    parser.add_option("-g", "--overlapping channels", dest="overlap_channels", type="int", default="5",
+                      help="How many channels are overlapping between nodes (only for async model)")
     parser.add_option("-n", "--nodes", dest="nodes", default=2,
                       help="How many nodes are used")
     parser.add_option("-i", "--iterations", dest="iterations", default=1,
@@ -104,11 +161,22 @@ def main():
     
     # turn command line parameters into local variables
     (options, args) = parser.parse_args()
-    num_nodes = int(options.nodes)
+    model = options.model
+    models = ['sync', 'async']
+    if model not in models:
+        print "Channel model %s no supported." % model
+        sys.exit()
+    
+    num_overlap_channels = int(options.overlap_channels)
     num_channels = int(options.channels)
+    # Reset number of overlapping to number of total channels in sync mode
+    if num_overlap_channels != num_channels and model == 'sync':
+        num_overlap_channels = num_channels
+
+    num_nodes = int(options.nodes)
     num_iterations = int(options.iterations)
     algorithm = options.algorithm
-    verbose = options.verbose    
+    verbose = options.verbose
     
     # Initialize seed, this helps reproducing the results
     np.random.seed(RANDOM_SEED)
@@ -118,14 +186,8 @@ def main():
     failed_counter = 0
     
     for run in range(num_iterations):
-        # Create the channels and nodes
-        channels = []
-        for i in range(num_channels):
-            channels.append(Channel('Channel %d' % i))
-
-        nodes = []
-        for i in range(num_nodes):
-            nodes.append(Node('Node %d' % i, algorithm, channels, verbose))        
+        # Create simulation environment
+        nodes = createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose)
         
         # Start rendezvous
         connected = False
@@ -151,7 +213,7 @@ def main():
 
     #print "Stats after %d runs:" % (TTR.len())
     if failed_counter: print "Failed rendezvous tries: %d" % (failed_counter)
-    print "%s\t%.2f\t%.2f\t%.2f\t%.2f" % (num_channels, TTR.min(), TTR.mean(), TTR.max(), TTR.std())
+    print "%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f" % (num_channels, num_overlap_channels, TTR.min(), TTR.mean(), TTR.max(), TTR.std())
 
 
 if __name__ == "__main__":
