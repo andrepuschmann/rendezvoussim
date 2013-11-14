@@ -209,7 +209,7 @@ class JSHoppingRendezvous(Rendezvous):
         # get channel for this specific slot
         c = self.JSHopping(self.M, self.P, self.r, self.i, self.t)
         self.trace("Slot: %d" % self.t)
-        self.trace("Channel: %d" % c)
+        self.trace("CH Index: %d" % c)
         self.t += 1 # increment slot counter
         return c
 
