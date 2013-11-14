@@ -172,6 +172,7 @@ def main():
     # Reset number of overlapping to number of total channels in sync mode
     if num_overlap_channels != num_channels and model == 'sync':
         num_overlap_channels = num_channels
+    if num_channels < num_overlap_channels: num_overlap_channels = num_channels     
 
     num_nodes = int(options.nodes)
     num_iterations = int(options.iterations)
