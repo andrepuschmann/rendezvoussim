@@ -5,114 +5,15 @@ Simulation of a various rendezvous algorithms
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import pylab as P
-from random import Random,expovariate,uniform
-from algorithms import *
-from helper import MinMaxMonitor
+#import pylab as P
+
+from environment import Channel,Node,Environment
+
+from helper import *
 from optparse import OptionParser
 
 RANDOM_SEED = 42
 MAX_SLOTS = 9999
-
-class Channel():
-    def __init__(self, name='Default channel'):
-        self.name = name
-        
-    def getName(self):
-        return self.name
-
-class Node():
-    def __init__(self, name='Default node', algorithm=None, channels=None, verbose=True):
-        self.name = name
-        self.channels = channels
-        self.no_channels = len(channels)
-        self.verbose = verbose
-        if "random" in algorithm:
-            self.algorithm = RandomRendezvous(self.no_channels, verbose)
-        elif "sequence" in algorithm:
-            self.algorithm = SequenceRendezvous(self.no_channels, False)
-            #self.algorithm = SequenceRendezvous(self.no_channels, True)
-            self.algorithm.printSequence()
-        elif "modularclock" in algorithm:
-            self.algorithm = ModularClockRendezvous(self.no_channels, verbose)
-        elif "jumpstay" in algorithm:
-            self.algorithm = JSHoppingRendezvous(self.no_channels, verbose)
-        else:
-            print "Rendezvous algorithm %s is not supported." % (algorithm)
-            sys.exit()        
-
-        self.printChannels()
-
-    def printChannels(self):
-        self.trace(0, "My channels: %d" % len(self.channels))
-        for i in self.channels:
-            self.trace(message="  %s" % i.getName())
-
-
-    def getNextChannel(self, slot):
-        self.trace(slot, "Determine next channel ...")
-        r = self.algorithm.getNextIndex()
-        self.trace(slot, "Next channel has index %d" % (r))
-        # check validity
-        if r > (self.no_channels - 1):
-            print "Error, too large channel index"
-            sys.exit()
-        return self.channels[r]
-        
-    def trace(self, slot=0, message=''):
-        if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
-        
-
-def isEqual(iterator):
-      try:
-         iterator = iter(iterator)
-         first = next(iterator)
-         return all(first == rest for rest in iterator)
-      except StopIteration:
-         return True
-
-
-def createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose):
-    nodes = []
-    
-    # Create the channels and nodes
-    if model == "sync":
-        channels = []
-        # All nodes have all channels in common
-        for i in range(num_channels):
-            channels.append(Channel('Channel %d' % i))
-        for n in range(num_nodes):
-            nodes.append(Node('Node %d' % n, algorithm, channels, verbose))
-        # debug
-        #for i in channels:
-        #    print "%s" % i.name
-
-    elif model == "async":
-        common_channels = []
-        created_channels = 0
-        # Create common channels first
-        for i in range(num_overlap_channels):
-            common_channels.append(Channel('Channel %d' % created_channels))
-            created_channels += 1
-      
-        # Create individual channels for each user
-        for n in range(num_nodes):
-            channels = []
-            channels += common_channels # start with common channels first
-            # create remaining channels
-            num_nonoverlap_channels = num_channels - num_overlap_channels
-            for i in range(num_nonoverlap_channels):
-                channels.append(Channel('Channel %d' % created_channels))
-                created_channels += 1
-            # finally create node 
-            nodes.append(Node('Node %d' % n, algorithm, channels, verbose))
-            
-        #print "num_channels: %d" % num_channels
-        #print "num_overlap_channels: %d" % num_overlap_channels
-        #print "Created channels: %d" % created_channels
-
-    return nodes
-
 
 def main():
     usage = "usage: %prog [options] arg"
@@ -168,9 +69,16 @@ def main():
     
     for run in range(num_iterations):
         # Create simulation environment
-        nodes = createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose)
+        env = Environment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose)
+        nodes = env.getNodes()
+        
+        #nodes = createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose)
         
         # Start rendezvous
+        # async start, let nodes first run for a while before
+        for i in range(np.random.randint(0, num_channels)):
+            nodes[0].getNextChannel(i)
+        
         connected = False
         slot = 1
         while not connected:
@@ -181,7 +89,7 @@ def main():
 
             # Check if all nodes have selected the same channel
             if isEqual(current_channels):
-                #print "Rendezvous after %d slots." % slot
+                #print "Rendezvous after %d slots in Channel %d." % (slot, current_channels[0])
                 TTR.tally(slot)
                 connected = True
             slot += 1
