@@ -92,7 +92,7 @@ def isEqual(iterator):
          return True
 
 
-def createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose):
+def createEnvironment(model, num_channels, num_overlap_channels, theta, num_nodes, algorithm, verbose):
     nodes = []
     
     # Create the channels and nodes
@@ -121,9 +121,17 @@ def createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algo
             channels += common_channels # start with common channels first
             # create remaining channels
             num_nonoverlap_channels = num_channels - num_overlap_channels
+            # in Liu's paper, a theta paper has been defined that determines the actual number of channels
+            if theta < 1.0:
+                r = np.random.normal(theta, 0.1) # draw random variable from a normal distribution with a mean of theta and std dev 0.1
+                num_nonoverlap_channels = int(num_nonoverlap_channels * r)
+            #print "num_nonoverlap_channels: %d" % num_nonoverlap_channels
             for i in range(num_nonoverlap_channels):
                 channels.append(Channel('Channel %d' % created_channels))
                 created_channels += 1
+                
+            # some debug output
+            #print "Node %d has %d channels." % (n, len(channels))
             # finally create node 
             nodes.append(Node('Node %d' % n, algorithm, channels, verbose))
             
@@ -145,6 +153,10 @@ def main():
                       help="Which channel model to use (sync or async)")
     parser.add_option("-g", "--overlapping channels", dest="overlap_channels", type="int", default="5",
                       help="How many channels are overlapping between nodes (only for async model)")
+
+    parser.add_option("-t", "--theta-parameter", dest="theta", type="float", default="1.0",
+                      help="The theta parameter defined in Liu's paper. It is multiplied with M to determine the actual number of channels")
+
     parser.add_option("-n", "--nodes", dest="nodes", default=2,
                       help="How many nodes are used")
     parser.add_option("-i", "--iterations", dest="iterations", default=1,
@@ -169,6 +181,7 @@ def main():
     
     num_overlap_channels = int(options.overlap_channels)
     num_channels = int(options.channels)
+    theta = options.theta
     # Reset number of overlapping to number of total channels in sync mode
     if num_overlap_channels != num_channels and model == 'sync':
         num_overlap_channels = num_channels
@@ -187,7 +200,7 @@ def main():
     
     for run in range(num_iterations):
         # Create simulation environment
-        nodes = createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose)
+        nodes = createEnvironment(model, num_channels, num_overlap_channels, theta, num_nodes, algorithm, verbose)
         
         # Start rendezvous
         connected = False
