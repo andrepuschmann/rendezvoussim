@@ -13,7 +13,7 @@ from helper import *
 from optparse import OptionParser
 
 RANDOM_SEED = 42
-MAX_SLOTS = 9999
+MAX_SLOTS = 39999
 
 def main():
     usage = "usage: %prog [options] arg"
@@ -75,7 +75,7 @@ def main():
         #nodes = createEnvironment(model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose)
         
         # Start rendezvous
-        # async start, let nodes first run for a while before
+        # async start, let fist node run for a while before second
         for i in range(np.random.randint(0, num_channels)):
             nodes[0].getNextChannel(i)
         
