@@ -73,15 +73,14 @@ class Node():
 
 
 class Environment():
-    def __init__(self, model, num_channels, num_overlap_channels, num_nodes, algorithm, verbose):
+    def __init__(self, model, num_channels, num_overlap_channels, num_nodes, theta, algorithm, verbose):
         self.name = "Environment"
         self.verbose = verbose
-        
+
+        # start environment creation
         self.nodes = self.createNodes(num_nodes, algorithm, verbose)
         channels = self.createChannels(num_channels)
-        
-        theta = 0.5
-        
+
         if model == "sync":
             self.selectCommonChannels(channels, self.nodes, num_channels)
         elif model == "async":
