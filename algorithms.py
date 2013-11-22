@@ -1,8 +1,9 @@
 import numpy as np
 from time import sleep
+import sys
 
 
-def getNextPrime(M=1):
+def getNextPrime(M=1, greaterOnly=False):
     def is_prime(n):
         """ check if n is prime"""
         i = 2
@@ -19,7 +20,12 @@ def getNextPrime(M=1):
     i = M
     if i < 2: return 2
     for i in range(i,2*M):
-        if is_prime(i) and M != i: break
+        if is_prime(i):
+            if greaterOnly:
+                if M != i:
+                    break
+            else:
+                break
     return i
 
 
