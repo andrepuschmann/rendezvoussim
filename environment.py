@@ -1,5 +1,5 @@
 from algorithms import *
-from random import choice
+import numpy as np
 import sys
 
 class Channel():
@@ -87,9 +87,9 @@ class Environment():
             self.selectCommonChannels(channels, self.nodes, num_overlap_channels)
             self.selectIndividualChannels(channels, self.nodes, num_channels, num_overlap_channels, theta)
         
-        # sort channel indices (FIXME: this causes varying results)
-        #for node in self.nodes:
-        #    node.channels = sorted(node.channels, key=lambda chan: chan.getId())   # sort by ID
+        # sort channel indices by ID
+        for node in self.nodes:
+            node.channels = sorted(node.channels, key=lambda chan: chan.getId())
         
         # initialize nodes
         for node in self.nodes:
@@ -125,7 +125,7 @@ class Environment():
     def selectCommonChannels(self, channels, nodes, num):
         # Select G commonly available channels
         for i in range(num):
-            c = choice(channels)
+            c = np.random.choice(channels)
             self.trace(0, "Channel %d is %d. common channel" % (c.getId(), i + 1))
             # append to each nodes' channel list
             for node in nodes:
@@ -135,11 +135,11 @@ class Environment():
 
     def selectIndividualChannels(self, channels, nodes, num_channels, num_overlap_channels, theta):
         # Distribute remaining channels over nodes
-        no_missing = int(np.ceil((num_channels * theta) - num_overlap_channels))
+        num_missing = int(np.ceil((num_channels * theta) - num_overlap_channels))
         for node in nodes:
-            for n in range(no_missing):
+            for n in range(num_missing):
                 if channels:
-                    c = choice(channels)
+                    c = np.random.choice(channels)
                     self.trace(0, "Channel %d is individual channel for node %d" % (c.getId(), n))
                     node.appendChannels(c)
                     channels.remove(c)
