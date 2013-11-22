@@ -252,3 +252,72 @@ class ExtendedJSHoppingRendezvous(Rendezvous):
         Rendezvous.__init__(self, "EJS", nr_of_channels)
         self.sequence = self.createSequence()
         #print self.printSequence()
+
+
+class CRSeqRendezvous(Rendezvous):
+    def __init__(self, nr_of_channels, verbose):
+        Rendezvous.__init__(self, "CRSEQ", nr_of_channels, verbose)
+        # initialize algorithm
+        self.M = int(nr_of_channels)
+        self.P = getNextPrime(self.M)
+        self.t = 0 # current time slot
+        self.trace("self.M: %d" % self.M)
+        self.trace("self.P: %d" % self.P)
+        #self.test()
+
+    # Simple functional test using the parameter given in the paper
+    def test(self):
+        print "CRSEQPattern test"
+        M = 10
+        print "M: %d" % M
+        P = getNextPrime(M)
+        print "P: %d" % P
+        
+        # Run CRSEQ for 3*M slots
+        seq = []
+        for i in range(3*M):
+            c = self.CRSEQHopping(M, P, i)
+            seq.append(c)
+        print seq
+        sys.exit()
+    
+    # Just call JumpStay here
+    def getNextIndex(self):
+        c = self.CRSEQHopping(self.M, self.P, self.t)
+        self.t += 1
+        self.trace("Next channel index: %d" % c)
+        return c
+
+    def CRSEQHopping(self, M, P, slot):
+        maxSubSeqLen = 3 * P - 1 # subsequence length
+        self.trace("maxSubSeqLen: %d" % maxSubSeqLen)
+
+        j = int(np.floor(slot / maxSubSeqLen)) # subsequence that we are in
+        self.trace("j: %d" % j)
+        
+        # Calculate T_j (or T_n as called in the paper)
+        Tj = int(j * (j + 1) * 0.5) % P
+        self.trace("Tj: %d" % Tj)
+        
+        # Calculate first part
+        # "The l-th element in the in the first 2N-1 elements is lements is computed as (Tj+l) mod N + 1"
+        # +1 at the end is not needed, as our channel indices range form 0 to M-1
+        lenFirstPart = 2 * P - 1
+        seq = []
+        for l in range(lenFirstPart):
+            nextElement = (Tj + l) % P
+            nextElement = nextElement % M
+            seq.append(nextElement)
+
+        # Calculate second part 
+        # "and any element in the remaining part is j + 1."
+        lenSecondPart = maxSubSeqLen - lenFirstPart
+        for x in range(lenSecondPart):
+            nextElement = j
+            nextElement = nextElement % M
+            seq.append(nextElement)
+        
+        self.trace(seq)
+        self.trace("slot: %d" % slot)
+
+        return seq[slot % maxSubSeqLen]

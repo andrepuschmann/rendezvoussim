@@ -36,6 +36,8 @@ class Node():
                 self.algorithm = ModularClockRendezvous(self.no_channels, self.verbose)
             elif "jumpstay" in self.algorithm_name:
                 self.algorithm = JSHoppingRendezvous(self.no_channels, self.verbose)
+            elif "crseq" in self.algorithm_name:
+                self.algorithm = CRSeqRendezvous(self.no_channels, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (self.algorithm_name)
                 sys.exit()   
