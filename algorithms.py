@@ -263,25 +263,35 @@ class CRSeqRendezvous(Rendezvous):
         self.t = 0 # current time slot
         self.trace("self.M: %d" % self.M)
         self.trace("self.P: %d" % self.P)
-        #self.test()
+        #self.test2()
 
     # Simple functional test using the parameter given in the paper
     def test(self):
         print "CRSEQPattern test"
-        M = 10
+        M = 20
         print "M: %d" % M
         P = getNextPrime(M)
         print "P: %d" % P
         
         # Run CRSEQ for 3*M slots
         seq = []
-        for i in range(3*M):
+        for i in range(3*P-1):
             c = self.CRSEQHopping(M, P, i)
             seq.append(c)
         print seq
         sys.exit()
+        
+    def test2(self):
+        print "CRSEQ test"
+        M = 20
+        print "M: %d" % M
+        P = getNextPrime(M)
+        print "P: %d" % P        
+        c = self.CRSEQHopping(M, P, 739674)
+        print c
+        sys.exit()
+        
     
-    # Just call JumpStay here
     def getNextIndex(self):
         c = self.CRSEQHopping(self.M, self.P, self.t)
         self.t += 1
@@ -289,35 +299,29 @@ class CRSeqRendezvous(Rendezvous):
         return c
 
     def CRSEQHopping(self, M, P, slot):
+        self.trace("-----")
+        self.trace("M: %d" % M)
+        self.trace("P: %d" % P)
+        self.trace("Slot: %d" % slot)
+        maxSeqLen = P * (3 * P - 1)
+        self.trace("maxSeqLen: %d" % maxSeqLen)
         maxSubSeqLen = 3 * P - 1 # subsequence length
         self.trace("maxSubSeqLen: %d" % maxSubSeqLen)
+
+        slot = slot % maxSeqLen
+        self.trace("newslot: %d" % slot)
+        
+        subSeqSlot = slot % maxSubSeqLen
+        self.trace("subSeqSlot: %d" % subSeqSlot)
 
         j = int(np.floor(slot / maxSubSeqLen)) # subsequence that we are in
         self.trace("j: %d" % j)
         
         # Calculate T_j (or T_n as called in the paper)
-        Tj = int(j * (j + 1) * 0.5) % P
+        Tj = ((j * (j + 1) / 2) + subSeqSlot) % P
         self.trace("Tj: %d" % Tj)
         
-        # Calculate first part
-        # "The l-th element in the in the first 2N-1 elements is lements is computed as (Tj+l) mod N + 1"
-        # +1 at the end is not needed, as our channel indices range form 0 to M-1
-        lenFirstPart = 2 * P - 1
-        seq = []
-        for l in range(lenFirstPart):
-            nextElement = (Tj + l) % P
-            nextElement = nextElement % M
-            seq.append(nextElement)
-
-        # Calculate second part 
-        # "and any element in the remaining part is j + 1."
-        lenSecondPart = maxSubSeqLen - lenFirstPart
-        for x in range(lenSecondPart):
-            nextElement = j
-            nextElement = nextElement % M
-            seq.append(nextElement)
-        
-        self.trace(seq)
-        self.trace("slot: %d" % slot)
-
-        return seq[slot % maxSubSeqLen]
+        if subSeqSlot < (2 * P - 1):
+            return Tj % M
+        else:
+            return j % M
