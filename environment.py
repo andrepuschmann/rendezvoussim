@@ -58,7 +58,7 @@ class Node():
             self.trace(message="  %s, id: %d" % (i.getName(), id(i)))
 
 
-    def getNextChannel(self, slot):
+    def getNextChannel(self, slot=0):
         self.trace(slot, "Determine next channel ...")
         r = self.algorithm.getNextIndex()
         self.trace(slot, "Next channel has index %d, id of channel is %d" % (r, self.channels[r].getId()))
