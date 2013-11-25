@@ -5,7 +5,6 @@ Simulation of a various rendezvous algorithms
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-#import pylab as P
 
 from environment import Channel,Node,Environment
 
@@ -75,10 +74,11 @@ def main():
         env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, algorithm, verbose)
         nodes = env.getNodes()
         
-        # Start rendezvous
-        # async start, let fist node run for a while before second
-        for i in range(np.random.randint(0, num_channels)):
-            nodes[0].getNextChannel(i)
+        # Start rendezvous asynchronously, let fist node run for a while before second
+        avg_num_channels = num_channels * theta 
+        k = np.random.randint(1, avg_num_channels - 1)
+        for i in range(k):
+            nodes[0].getNextChannel()
         
         connected = False
         slot = 1
@@ -103,7 +103,10 @@ def main():
 
     #print "Stats after %d runs:" % (TTR.len())
     if failed_counter: print "Failed rendezvous tries: %d" % (failed_counter)
-    print "%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f" % (num_channels, num_overlap_channels, TTR.min(), TTR.mean(), TTR.max(), TTR.std())
+    if TTR.len():
+        print "%s\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f" % (algorithm, num_channels, num_overlap_channels, TTR.min(), TTR.mean(), TTR.max(), TTR.std())
+    else:
+        print "No statistics collected."
 
 
 if __name__ == "__main__":
