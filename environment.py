@@ -15,34 +15,33 @@ class Channel():
 
 
 class Node():
-    def __init__(self, id, algorithm=None, channels=None, verbose=True):
+    def __init__(self, id, channels=None, verbose=True):
         self.id = id
         self.name = "Node " + str(id)
-        self.algorithm_name = algorithm
         self.channels = channels
         self.verbose = verbose
         
-    def initialize(self):
+    def initialize(self, algorithm=None):
         self.trace(0, "Try to initialize node")
         self.no_channels = len(self.channels)
-        if self.no_channels:
-            if "random" in self.algorithm_name:
+        if self.no_channels and algorithm:
+            if "random" in algorithm:
                 self.algorithm = RandomRendezvous(self.no_channels, self.verbose)
-            elif "sequence" in self.algorithm_name:
+            elif "sequence" in algorithm:
                 self.algorithm = SequenceRendezvous(self.no_channels, False)
                 #self.algorithm = SequenceRendezvous(self.no_channels, True)
                 self.algorithm.printSequence()
-            elif "modularclock" in self.algorithm_name:
+            elif "modularclock" in algorithm:
                 self.algorithm = ModularClockRendezvous(self.no_channels, self.verbose)
-            elif "jumpstay" in self.algorithm_name:
+            elif "jumpstay" in algorithm:
                 self.algorithm = JSHoppingRendezvous(self.no_channels, self.verbose)
-            elif "crseq" in self.algorithm_name:
+            elif "crseq" in algorithm:
                 self.algorithm = CRSeqRendezvous(self.no_channels, self.verbose)
             else:
-                print "Rendezvous algorithm %s is not supported." % (self.algorithm_name)
+                print "Rendezvous algorithm %s is not supported." % (algorithm)
                 sys.exit()   
         else:
-            self.trace(0, "No channels given, initialize later ..")
+            self.trace(0, "No channels or algorithm given, initialize later ..")
 
         
     def setChannels(self, channels):
@@ -56,7 +55,6 @@ class Node():
         self.trace(0, "My channels: %d" % len(self.channels))
         for i in self.channels:
             self.trace(message="  %s, id: %d" % (i.getName(), id(i)))
-
 
     def getNextChannel(self, slot=0):
         self.trace(slot, "Determine next channel ...")
@@ -75,12 +73,12 @@ class Node():
 
 
 class Environment():
-    def __init__(self, model, num_channels, num_overlap_channels, num_nodes, theta, algorithm, verbose):
+    def __init__(self, model, num_channels, num_overlap_channels, num_nodes, theta, verbose):
         self.name = "Environment"
         self.verbose = verbose
 
         # start environment creation
-        self.nodes = self.createNodes(num_nodes, algorithm, verbose)
+        self.nodes = self.createNodes(num_nodes, verbose)
         channels = self.createChannels(num_channels)
 
         if model == "sync":
@@ -101,17 +99,17 @@ class Environment():
             node.printChannels()
 
 
-    def createNodes(self, num, algorithm, verbose):
+    def createNodes(self, num, verbose):
         # Create nodes and initialize them with empty channel list
         nodes = []
         for n in range(num):
-            nodes.append(Node(n + 1, algorithm, [], verbose))
+            nodes.append(Node(n + 1, [], verbose))
         return nodes
 
 
-    def initializeNodes(self):
+    def initializeNodes(self, algorithm=None):
         for node in self.nodes:
-            node.initialize()
+            node.initialize(algorithm)
 
 
     def createChannels(self, num):

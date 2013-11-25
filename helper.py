@@ -28,3 +28,7 @@ def isEqual(iterator):
          return all(first == rest for rest in iterator)
       except StopIteration:
          return True
+
+
+def string_splitter(option, opt, value, parser):
+    setattr(parser.values, option.dest, value.split(','))

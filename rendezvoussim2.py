@@ -18,7 +18,8 @@ def main():
     usage = "usage: %prog [options] arg"
     parser = OptionParser(usage)
     parser.add_option("-a", "--algorithm", dest="algorithm", default="random",
-                      help="Which rendezvous algorithm to simulate")
+                      help="Which rendezvous algorithm to simulate",
+                      type='string', action='callback', callback=string_splitter)
     parser.add_option("-c", "--channels", dest="channels", default=5,
                       help="How many channels are available")
     parser.add_option("-m", "--model", dest="model", default="sync",
@@ -59,54 +60,64 @@ def main():
 
     num_nodes = int(options.nodes)
     num_iterations = int(options.iterations)
-    algorithm = options.algorithm
+    algorithms = options.algorithm
     verbose = options.verbose
     
     # Initialize seed, this helps reproducing the results
     np.random.seed(RANDOM_SEED)
 
-    # Prepare statistics collection
-    TTR = MinMaxMonitor()
-    failed_counter = 0
+    # Prepare statistics collection in dictionaries
+    ttr = {}
+    for alg in algorithms:
+        ttr[alg] = MinMaxMonitor()
     
     for run in range(num_iterations):
         # Create simulation environment
-        env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, algorithm, verbose)
+        env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, verbose)
         nodes = env.getNodes()
         
-        # Start rendezvous asynchronously, let fist node run for a while before second
+        # Start rendezvous asynchronously, select node and number of iterations randomly
         avg_num_channels = num_channels * theta 
-        k = np.random.randint(1, avg_num_channels - 1)
-        for i in range(k):
-            nodes[0].getNextChannel()
+        async_slots = np.random.randint(1, avg_num_channels - 1)
+        async_node = np.random.randint(0, num_nodes)
         
-        connected = False
-        slot = 1
-        while not connected:
-            # For each node, get selected channel in this round
-            current_channels = []
+        # Evaluate each algorithm using the same environment
+        for alg in algorithms:
+            # Initialize nodes with actual algorithm
             for node in nodes:
-                current_channels.append(node.getNextChannel(slot))
-
-            # Check if all nodes have selected the same channel
-            if isEqual(current_channels):
-                #print "Rendezvous after %d slots in Channel %d." % (slot, current_channels[0])
-                TTR.tally(slot)
-                connected = True
-            slot += 1
-            
-            # Sanity check, after MAX_SLOTS, stop process
-            if slot > MAX_SLOTS:
-                connected = True
-                failed_counter += 1
+                node.initialize(alg)
                 
+            # asynchronous start
+            for k in range(async_slots):
+                nodes[async_node].getNextChannel()
+            
+            connected = False
+            slot = 1
+            while not connected:
+                # For each node, get selected channel in this round
+                current_channels = []
+                for node in nodes:
+                    current_channels.append(node.getNextChannel(slot))
 
-    #print "Stats after %d runs:" % (TTR.len())
-    if failed_counter: print "Failed rendezvous tries: %d" % (failed_counter)
-    if TTR.len():
-        print "%s\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f" % (algorithm, num_channels, num_overlap_channels, TTR.min(), TTR.mean(), TTR.max(), TTR.std())
-    else:
-        print "No statistics collected."
+                # Check if all nodes have selected the same channel
+                if isEqual(current_channels):
+                    #print "Rendezvous after %d slots in Channel %d." % (slot, current_channels[0])
+                    ttr[alg].tally(slot)
+                    connected = True
+                slot += 1
+                
+                # Sanity check, after MAX_SLOTS, stop process
+                if slot > MAX_SLOTS:
+                    connected = True
+    
+    for alg in algorithms:
+        num_ok = ttr[alg].len()
+        num_failed = num_iterations - ttr[alg].len()
+        if ttr[alg].len():
+            # alg  num_channels   num_overlap_channels   num_iterations   num_ok   num_ok   ttr_min   ttr_mean   ttr_max   ttr_std
+            print "%s\t%d\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f" % (alg, num_channels, num_overlap_channels, num_iterations, num_ok, num_failed, ttr[alg].min(), ttr[alg].mean(), ttr[alg].max(), ttr[alg].std())
+        else:
+            print "No statistics collected."
 
 
 if __name__ == "__main__":
