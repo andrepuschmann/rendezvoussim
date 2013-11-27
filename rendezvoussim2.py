@@ -32,6 +32,8 @@ def main():
                       help="How many nodes are used")
     parser.add_option("-i", "--iterations", dest="iterations", default=1,
                       help="How often to repeat the simulation")
+    parser.add_option("-r", "--randomreplace", dest="randomreplace", default=False, action="store_true",
+                      help="Whether to replace unavailable channels with random ones")
     parser.add_option("-u", "--tune", dest="tunetime", default=0.1,
                       help="How long tuning to given channel takes")
     parser.add_option("-s", "--summary", dest="summary", default=False,
@@ -61,6 +63,7 @@ def main():
     num_nodes = int(options.nodes)
     num_iterations = int(options.iterations)
     algorithms = options.algorithm
+    has_random_replace = options.randomreplace
     verbose = options.verbose
     
     # Initialize seed, this helps reproducing the results
@@ -84,9 +87,8 @@ def main():
         # Evaluate each algorithm using the same environment
         for alg in algorithms:
             # Initialize nodes with actual algorithm
-            for node in nodes:
-                node.initialize(alg)
-                
+            env.initializeNodes(alg, has_random_replace)
+
             # asynchronous start
             for k in range(async_slots):
                 nodes[async_node].getNextChannel()
