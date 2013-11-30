@@ -81,13 +81,18 @@ def main():
                          delimiter='\t', skip_header=1, skip_footer=0,
                          )
     
-    # Extract general variables          
-    num_overlapping_channels = set(data['num_overlapping_channels'])
-    num_overlapping_channels = list(num_overlapping_channels)
-    num_channels = num_overlapping_channels # should be the same
-    min_x_value = num_overlapping_channels[0]
-    max_x_value = num_overlapping_channels[-1]
+    # Extract values for x axis, num_overlapping_channels can be
+    # used for both symmetric and assymetric results
+    raw = data['num_overlapping_channels']
     
+    # .. remove duplets
+    num_channels = []
+    for x in raw:
+        if x not in num_channels:
+            num_channels.append(x)
+    min_x_value = num_channels[0]
+    max_x_value = num_channels[-1]
+
     # Extract algorithms in result file
     algorithms = []
     for x in data['alg']:
@@ -97,20 +102,19 @@ def main():
     # Extract samples for each algorithm
     mean_values = {}
     max_values = {}
-    num_overlapping_channels = 0
     for alg in algorithms:
         raw_samples = [x for x in data if x['alg'] == alg]
         mean_values[alg] = [x[7] for x in raw_samples] # mean values are in column 8
         max_values[alg] = [x[8] for x in raw_samples] # max values are in column 9        
     
-
     plot = Plotter()   
+    plot.add_xaxis(num_channels)
+    plot.set_axis_lim([min_x_value,max_x_value])
+
     if model == 'symmetric':
-        plot.add_xaxis(num_channels)
         plot.set_axis_labels('Total number of channels')
         plot.set_legend_pos('upper left')
     else:
-        plot.add_xaxis(num_overlapping_channels)
         plot.set_axis_labels('Number of overlapping channels')
         plot.set_legend_pos('upper right')
     
@@ -125,8 +129,6 @@ def main():
         for alg in algorithms:
             plot.add_data(max_values[alg], label=get_label(alg))
         plot.set_axis_labels(None, 'MTTR')
-       
-    plot.set_axis_lim([min_x_value,max_x_value])
 
     if usetex:
         plot.set_use_tex()
