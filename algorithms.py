@@ -135,7 +135,7 @@ class SequenceRendezvous(Rendezvous):
             
         # Initialize starting index to random number
         self.index = np.random.randint(0, self.nr_of_channels)
-        self.trace(0, "Start index: %d" % self.index)
+        self.trace("Start index: %d" % self.index)
 
     
     def createSequence(self):

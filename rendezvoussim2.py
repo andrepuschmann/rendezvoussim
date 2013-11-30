@@ -3,12 +3,9 @@
 Simulation of a various rendezvous algorithms
 """
 import sys
-import matplotlib.pyplot as plt
 import numpy as np
-
-from environment import Channel,Node,Environment
-
-from helper import *
+from environment import Environment
+from helper import MinMaxMonitor,isEqual,string_splitter
 from optparse import OptionParser
 
 RANDOM_SEED = 42

@@ -29,6 +29,8 @@ class Node():
         self.num_channels = len(self.channels) # The actual number of accessible channels
         self.has_random_replace = has_random_replace
         
+        algorithm = algorithm.strip()
+        
         # If random replace is turned on, we pass max_num_channels to the algorithm 
         # instead of the actual number of channels of a node
         if self.has_random_replace == True:
@@ -37,17 +39,17 @@ class Node():
             num_channels_algorithm = self.num_channels
                 
         if self.num_channels > 0 and algorithm != None:
-            if "random" in algorithm:
+            if algorithm == "random":
                 self.algorithm = RandomRendezvous(num_channels_algorithm, self.verbose)
-            elif "sequence" in algorithm:
+            elif algorithm == "seq":
                 self.algorithm = SequenceRendezvous(num_channels_algorithm, False)
                 #self.algorithm = SequenceRendezvous(num_channels_algorithm, True)
                 self.algorithm.printSequence()
-            elif "modularclock" in algorithm:
+            elif algorithm == "mc":
                 self.algorithm = ModularClockRendezvous(num_channels_algorithm, self.verbose)
-            elif "jumpstay" in algorithm:
+            elif algorithm == "js":
                 self.algorithm = JSHoppingRendezvous(num_channels_algorithm, self.verbose)
-            elif "crseq" in algorithm:
+            elif algorithm == "crseq":
                 self.algorithm = CRSeqRendezvous(num_channels_algorithm, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (algorithm)
