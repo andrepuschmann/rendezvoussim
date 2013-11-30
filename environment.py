@@ -96,9 +96,9 @@ class Environment():
         self.nodes = self.createNodes(num_nodes, verbose)
         channels = self.createChannels(max_num_channels)
 
-        if model == "sync":
+        if model == "symmetric":
             self.selectCommonChannels(channels, self.nodes, max_num_channels)
-        elif model == "async":
+        elif model == "asymmetric":
             self.selectCommonChannels(channels, self.nodes, num_overlap_channels)
             self.selectIndividualChannels(channels, self.nodes, max_num_channels, num_overlap_channels, theta)
 

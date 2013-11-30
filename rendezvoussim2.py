@@ -19,10 +19,10 @@ def main():
                       type='string', action='callback', callback=string_splitter)
     parser.add_option("-c", "--channels", dest="channels", default=5,
                       help="How many channels are available")
-    parser.add_option("-m", "--model", dest="model", default="sync",
-                      help="Which channel model to use (sync or async)")
+    parser.add_option("-m", "--model", dest="model", default="symmetric",
+                      help="Which channel model to use (symmetric or asymmetric)")
     parser.add_option("-g", "--overlapping channels", dest="overlap_channels", type="int", default="5",
-                      help="How many channels are overlapping between nodes (only for async model)")
+                      help="How many channels are overlapping between nodes (only for asymmetric model)")
     parser.add_option("-t", "--theta-parameter", dest="theta", type="float", default="0.5",
                       help="The theta parameter defined in Liu's paper. It is multiplied with M to determine the actual number of channels per node")
     parser.add_option("-n", "--nodes", dest="nodes", default=2,
@@ -44,7 +44,7 @@ def main():
     # turn command line parameters into local variables
     (options, args) = parser.parse_args()
     model = options.model
-    models = ['sync', 'async']
+    models = ['symmetric', 'asymmetric']
     if model not in models:
         print "Channel model %s no supported." % model
         sys.exit()
@@ -53,7 +53,7 @@ def main():
     num_channels = int(options.channels)
     theta = options.theta
     # Reset number of overlapping to number of total channels in sync mode
-    if num_overlap_channels != num_channels and model == 'sync':
+    if num_overlap_channels != num_channels and model == 'symmetric':
         num_overlap_channels = num_channels
     if num_channels < num_overlap_channels: num_overlap_channels = num_channels     
 
