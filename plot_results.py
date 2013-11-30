@@ -30,11 +30,21 @@ from optparse import OptionParser
 
 labels = {"random":"Random",
           "js":"Jump-Stay",
-          "crseq":"CRSEQ"}
+          "crseq":"CRSEQ",
+          "mc":"Modular Clock"}
+
+def get_label(alg):
+    try:
+        return labels[alg]
+    except:
+        return alg
+
 
 def main():
     usage = "usage: %prog [options] arg"
     parser = OptionParser(usage)
+    parser.add_option("-m", "--model", dest="model", default="symmetric",
+                      help="Which channel model to use (symmetric or asymmetric)")
     parser.add_option("--ttr", dest="ttr", default=False, action="store_true",
                       help="Whether to plot mean TTR")
     parser.add_option("--mttr", dest="mttr", default=False, action="store_true",
@@ -49,6 +59,7 @@ def main():
     
     # turn command line parameters into local variables
     (options, args) = parser.parse_args()
+    model = options.model
     ttr = options.ttr
     mttr = options.mttr
     infile = options.infile
@@ -70,9 +81,12 @@ def main():
                          delimiter='\t', skip_header=1, skip_footer=0,
                          )
     
-    # Extract general variables
-    max_num_channels = data['max_num_channels'][0]
-    #print "max_num_channels: %d" % max_num_channels
+    # Extract general variables          
+    num_overlapping_channels = set(data['num_overlapping_channels'])
+    num_overlapping_channels = list(num_overlapping_channels)
+    num_channels = num_overlapping_channels # should be the same
+    min_x_value = num_overlapping_channels[0]
+    max_x_value = num_overlapping_channels[-1]
     
     # Extract algorithms in result file
     algorithms = []
@@ -87,29 +101,32 @@ def main():
     for alg in algorithms:
         raw_samples = [x for x in data if x['alg'] == alg]
         mean_values[alg] = [x[7] for x in raw_samples] # mean values are in column 8
-        max_values[alg] = [x[8] for x in raw_samples] # max values are in column 9
-        num_overlapping_channels = [x[2] for x in raw_samples] # should be the same for all
+        max_values[alg] = [x[8] for x in raw_samples] # max values are in column 9        
     
-    #print mean_values['random']
-    #print num_overlapping_channels
-    
-    
-    plot = Plotter()
-    plot.add_xaxis(num_overlapping_channels)
+
+    plot = Plotter()   
+    if model == 'symmetric':
+        plot.add_xaxis(num_channels)
+        plot.set_axis_labels('Total number of channels')
+        plot.set_legend_pos('upper left')
+    else:
+        plot.add_xaxis(num_overlapping_channels)
+        plot.set_axis_labels('Number of overlapping channels')
+        plot.set_legend_pos('upper right')
     
     if ttr:
         # Plot mean value for each algorithm
         for alg in algorithms:
-            plot.add_data(mean_values[alg], label=labels[alg])
-        plot.set_axis_labels('Overlapping channels', 'E[TTR]')
+            plot.add_data(mean_values[alg], label=get_label(alg))
+        plot.set_axis_labels(None, 'E[TTR]')
         #plot.set_axis_lim([1,20], [0,2500])
     elif mttr:
         # Plot max value for each algorithm
         for alg in algorithms:
-            plot.add_data(max_values[alg], label=labels[alg])
-        plot.set_axis_labels('Overlapping channels', 'MTTR')
-        #plot.set_axis_lim([1,20])
-        plot.set_legend_pos('upper right')
+            plot.add_data(max_values[alg], label=get_label(alg))
+        plot.set_axis_labels(None, 'MTTR')
+       
+    plot.set_axis_lim([min_x_value,max_x_value])
 
     if usetex:
         plot.set_use_tex()

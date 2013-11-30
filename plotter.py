@@ -13,6 +13,7 @@ line_markers = ["-", "-s", "-^", "-D", "-o"]
 class Plotter(object):
     def __init__(self, filename="dummy.dat"):
         self.colors = [tui_green, tui_blue, tui_orange]
+        #self.colors = [tui_blue]
         self.colorcycler = cycle(self.colors)
         self.linecolor = next(self.colorcycler)
         self.used_colors = 0
@@ -28,9 +29,11 @@ class Plotter(object):
     def add_xaxis(self, data):
         self.x = data
         
-    def set_axis_labels(self, x='x', y='y'):
-        self.xlabel = x
-        self.ylabel = y
+    def set_axis_labels(self, x=None, y=None):
+        if x:        
+            self.xlabel = x
+        if y:
+            self.ylabel = y
         
     def set_axis_lim(self, x=None, y=None):
         if x:        
