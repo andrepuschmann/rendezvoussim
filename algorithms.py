@@ -325,3 +325,87 @@ class CRSeqRendezvous(Rendezvous):
             return Tj % M
         else:
             return j % M
+
+
+class ExhaustiveSearch(Rendezvous):
+    def __init__(self, node_id, nr_of_channels, verbose):
+        Rendezvous.__init__(self, "EX", nr_of_channels, verbose)
+        self.isMaster = False
+        self.M = int(nr_of_channels)
+        self.masterChannel = -1
+        self.slaveChannel = -1
+        self.t = -1
+        if node_id == 1:
+            self.isMaster = True
+            self.trace("I am the master")
+        else:
+            self.trace("I am a slave")
+
+    def getNextIndex(self):
+        self.t = self.t + 1
+        if self.isMaster:
+            # Stay in one channel for M slots to make sure the slave catches
+            # up, choose next channel in every Mth slot            
+            if (self.t % (self.M)) == 0:
+                self.masterChannel = (self.masterChannel + 1) % self.M
+
+            self.trace("masterChannel: %d" % self.masterChannel)
+            return self.masterChannel
+        else:
+            # Choose new channel in each slot and iterate through available 
+            # channels, starting with lowest frequency            
+            self.slaveChannel = (self.slaveChannel + 1) % self.M
+            self.trace("slaveChannel: %d" % self.slaveChannel)
+            return self.slaveChannel
+
+
+class RandomizedExhaustiveSearch(Rendezvous):
+    def __init__(self, node_id, nr_of_channels, verbose):
+        Rendezvous.__init__(self, "REX", nr_of_channels, verbose)
+        self.isMaster = False
+        self.M = int(nr_of_channels)
+        
+        self.createMasterChannelSet()
+        self.createSlaveChannelSet()
+        #print self.masterChannelSet
+        
+        #sys.exit()
+        
+        self.masterChannel = -1
+        self.slaveChannel = -1
+        self.t = -1
+        if node_id == 1:
+            self.isMaster = True
+            self.trace("I am the master")
+        else:
+            self.trace("I am a slave")
+            
+
+    def createMasterChannelSet(self):
+        self.masterChannelSet = [x for x in range(self.M)]
+
+    def createSlaveChannelSet(self):
+        self.slaveChannelSet = [x for x in range(self.M)]
+
+    def getNextIndex(self):
+        self.t = self.t + 1
+        if self.isMaster:
+            # Stay in one channel for M slots to make sure the slave catches
+            # up, choose next channel in every Mth slot
+            if (self.t % (self.M)) == 0:
+                self.masterChannel = np.random.choice(self.masterChannelSet)
+                self.masterChannelSet.remove(self.masterChannel)
+                if not self.masterChannelSet:
+                    self.createMasterChannelSet()
+
+            self.trace("masterChannel: %d" % self.masterChannel)
+            return self.masterChannel
+        else:
+            # Choose new channel in each slot and iterate through available 
+            # channels, starting with lowest frequency            
+            self.slaveChannel = np.random.choice(self.slaveChannelSet)
+            self.slaveChannelSet.remove(self.slaveChannel)
+            if not self.slaveChannelSet:
+                self.createSlaveChannelSet()
+
+            return self.slaveChannel
