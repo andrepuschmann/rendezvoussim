@@ -23,15 +23,16 @@ Created on Wed Nov 27 13:07:11 2013
 
 import numpy as np
 import pylab as pl
-
 from plotter import Plotter
 import sys
 from optparse import OptionParser
+from helper import string_splitter
 
 labels = {"random":"Random",
           "js":"Jump-Stay",
           "crseq":"CRSEQ",
-          "mc":"Modular Clock"}
+          "mc":"Modular Clock",
+          "ex":"Exhaustive Search"}
 
 def get_label(alg):
     try:
@@ -55,8 +56,11 @@ def main():
                       help="Read from file", metavar="FILE")
     parser.add_option("-o", "--output", dest="outfile",
                       help="Write output to file", metavar="FILE")
+    parser.add_option("-a", "--algorithm", dest="algorithm",
+                      help="Which rendezvous algorithm to include in plot",
+                      type='string', action='callback', callback=string_splitter)
 
-    
+
     # turn command line parameters into local variables
     (options, args) = parser.parse_args()
     model = options.model
@@ -65,6 +69,7 @@ def main():
     infile = options.infile
     outfile = options.outfile
     usetex = options.usetex
+    algs_asked_to_plot = options.algorithm
     
     # Read values
     data = np.genfromtxt(infile,
@@ -94,15 +99,16 @@ def main():
     max_x_value = num_channels[-1]
 
     # Extract algorithms in result file
-    algorithms = []
+    algs_to_plot = []
     for x in data['alg']:
-        if x not in algorithms:
-            algorithms.append(x)
+        if x not in algs_to_plot:
+            if (algs_asked_to_plot == None) or (x in algs_asked_to_plot):
+                algs_to_plot.append(x)
             
     # Extract samples for each algorithm
     mean_values = {}
     max_values = {}
-    for alg in algorithms:
+    for alg in algs_to_plot:
         raw_samples = [x for x in data if x['alg'] == alg]
         mean_values[alg] = [x[7] for x in raw_samples] # mean values are in column 8
         max_values[alg] = [x[8] for x in raw_samples] # max values are in column 9        
@@ -120,13 +126,13 @@ def main():
     
     if ttr:
         # Plot mean value for each algorithm
-        for alg in algorithms:
+        for alg in algs_to_plot:
             plot.add_data(mean_values[alg], label=get_label(alg))
         plot.set_axis_labels(None, 'E[TTR]')
         #plot.set_axis_lim([1,20], [0,2500])
     elif mttr:
         # Plot max value for each algorithm
-        for alg in algorithms:
+        for alg in algs_to_plot:
             plot.add_data(max_values[alg], label=get_label(alg))
         plot.set_axis_labels(None, 'MTTR')
 
