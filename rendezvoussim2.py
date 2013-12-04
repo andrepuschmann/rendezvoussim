@@ -14,7 +14,7 @@ MAX_SLOTS = 39999
 def main():
     usage = "usage: %prog [options] arg"
     parser = OptionParser(usage)
-    parser.add_option("-a", "--algorithm", dest="algorithm", default="random",
+    parser.add_option("-a", "--algorithm", dest="algorithm",
                       help="Which rendezvous algorithm to simulate",
                       type='string', action='callback', callback=string_splitter)
     parser.add_option("-c", "--channels", dest="channels", default=5,
@@ -23,7 +23,7 @@ def main():
                       help="Which channel model to use (symmetric or asymmetric)")
     parser.add_option("-g", "--overlapping channels", dest="overlap_channels", type="int", default="5",
                       help="How many channels are overlapping between nodes (only for asymmetric model)")
-    parser.add_option("-t", "--theta-parameter", dest="theta", type="float", default="0.5",
+    parser.add_option("-t", "--theta-parameter", dest="theta", type="float", default="1.0",
                       help="The theta parameter defined in Liu's paper. It is multiplied with M to determine the actual number of channels per node")
     parser.add_option("-n", "--nodes", dest="nodes", default=2,
                       help="How many nodes are used")
@@ -62,7 +62,7 @@ def main():
     algorithms = options.algorithm
     has_random_replace = options.randomreplace
     verbose = options.verbose
-    
+
     # Initialize seed, this helps reproducing the results
     np.random.seed(RANDOM_SEED)
 
@@ -75,10 +75,10 @@ def main():
         # Create simulation environment
         env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, verbose)
         nodes = env.getNodes()
-        
+
         # Start rendezvous asynchronously, select node and number of iterations randomly
-        avg_num_channels = num_channels * theta 
-        async_slots = np.random.randint(1, avg_num_channels - 1)
+        async_slots = np.random.randint(1, num_channels * num_channels)
+        #print "async_slots: %d" % async_slots
         async_node = np.random.randint(0, num_nodes)
         
         # Evaluate each algorithm using the same environment
