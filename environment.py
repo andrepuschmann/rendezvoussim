@@ -51,6 +51,10 @@ class Node():
                 self.algorithm = JSHoppingRendezvous(num_channels_algorithm, self.verbose)
             elif algorithm == "crseq":
                 self.algorithm = CRSeqRendezvous(num_channels_algorithm, self.verbose)
+            elif algorithm == "ex":
+                self.algorithm = ExhaustiveSearch(self.id, num_channels_algorithm, self.verbose)
+            elif algorithm == "rex":
+                self.algorithm = RandomizedExhaustiveSearch(self.id, num_channels_algorithm, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (algorithm)
                 sys.exit()   
@@ -65,6 +69,9 @@ class Node():
         self.trace(0, "My channels: %d" % len(self.channels))
         for i in self.channels:
             self.trace(message="  %s, id: %d" % (i.getName(), id(i)))
+            
+    def getChannels(self):
+        return self.channels
 
     def getNextChannel(self, slot=0):
         self.trace(slot, "Determine next channel ...")
@@ -159,6 +166,40 @@ class Environment():
                     print "Warning: M not large enough to satisfy N=M*theta!"
                     pass
 
+
+    def calculateChannelStatistics(self):
+        result = []
+        for node in self.nodes:
+            channels = node.getChannels()
+            chan_list = [chan.getId() for chan in channels]
+            binarymap = [0 for x in range(self.max_num_channels)] # initialize map to zero
+            # iterate over channel list and mark available channels
+            for c in chan_list:
+                binarymap[c] = 1
+            result.append(binarymap)
+
+        # Calculate intersection of all channel sets (works only for two users)
+        if len(result) == 2:
+            intersect = []
+            for (x,y) in zip(result[0],result[1]):
+                if ((x is 1) and (y is 1)):
+                    intersect.append(1)
+                elif (x is 1):
+                    intersect.append(0.66)
+                elif (y is 1):
+                    intersect.append(0.33)
+                else:
+                    intersect.append(0)
+            result.append(intersect)
+
+        else:
+            print "Intersection only implemented for two users."
+            sys.exit()
+
+        return result
+    
+    def getOverlappingChannelsAsBitArray(self):
+        return self.calculateChannelStatistics()[2]
 
     def getNodes(self):
         return self.nodes
