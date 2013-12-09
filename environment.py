@@ -144,6 +144,14 @@ class Environment():
         self.verbose = verbose
         self.max_num_channels = max_num_channels
         self.num_overlap_channels = num_overlap_channels
+        
+        self.num_pu_node1 = 2
+        self.num_pu_node2 = 2
+        self.num_pu_both = 4
+        self.pu_width = 5
+        
+        self.scenario = "random"
+        #self.scenario = "deterministic"
 
         # start environment creation
         self.nodes = self.createNodes(num_nodes, verbose)
@@ -152,8 +160,11 @@ class Environment():
         if model == "symmetric":
             self.selectCommonChannels(channels, self.nodes, max_num_channels)
         elif model == "asymmetric":
-            self.selectCommonChannels(channels, self.nodes, num_overlap_channels)
-            self.selectIndividualChannels(channels, self.nodes, max_num_channels, num_overlap_channels, theta)
+            if self.scenario == "random":
+                self.selectCommonChannels(channels, self.nodes, num_overlap_channels)
+                self.selectIndividualChannels(channels, self.nodes, max_num_channels, num_overlap_channels, theta)
+            else:
+                self.placePu(channels, self.nodes, self.num_pu_node1, self.num_pu_node2, self.num_pu_both, self.pu_width)
 
         # sort channel indices by ID
         for node in self.nodes:
@@ -189,6 +200,92 @@ class Environment():
         self.trace(0, "Pool has %d channels" % len(pool))
         return pool
 
+    def getChannelWithId(self, channels, id):
+        for chan in channels:
+            #print "id is: %d" % chan.getId()
+            if chan.getId() is id:
+                return chan
+
+    def removeChannelWithId(self, channels, id):
+        for chan in channels:
+            if chan.getId() == id:
+                channels.remove(chan)
+
+
+    # This function creates PUs in the sourrounding of a node making the
+    # channels unavailable for that node, but available for the other one
+    def createPuAtNodePossition(self, channels, num, width, id):
+        # determine other node where channels are available
+        id_available = []
+        for node in self.nodes:
+            if node.getId() not in id:
+                id_available.append(node.getId())
+                
+        #print id_available
+
+        for i in range(num):
+            # Select center channel randomly
+            chan_ids = []
+            c = np.random.choice(channels)
+            chan_ids.append(c.getId())
+
+            # select upper and lower neighbor(s)
+            num_upper_lower = int((width - 1) / 2)
+            #print "num_upper_lower: %d" % num_upper_lower
+            for x in range(1, num_upper_lower + 1):
+                #print "x: %d" % x
+                lower_neighbor = c.getId() - x
+                upper_neighbor = c.getId() + x
+                chan_ids.append(lower_neighbor)
+                chan_ids.append(upper_neighbor)
+                #print "remove lower_neighbor: %d" % lower_neighbor
+                #print "remove upper_neighbor: %d" % upper_neighbor
+
+            # Try to remove all channels 
+            for id in chan_ids:
+                if len(channels) > self.num_overlap_channels:
+                    #print "id: %d" % id
+                    chan = self.getChannelWithId(channels, id)
+                    if chan:
+                        for node in id_available:
+                            self.nodes[node].appendChannels(chan)
+                        self.trace(0, "Channel %d is PU channel %d" % (chan.getId(), i + 1))
+                        self.removeChannelWithId(channels, id)
+                else:
+                    print "Stop PU creation due to lack of channels"
+
+            #sys.exit()
+
+
+    def placePu(self, channels, nodes, num_pu_node1, num_pu_node2, num_pu_both, width):
+        #print "width: %d" % width
+        #print "num_pu_node1: %d" % num_pu_node1
+        #print "num_pu_node2: %d" % num_pu_node2
+        #print "num_pu_both: %d" % num_pu_both
+        
+        
+        #print "Create PU around node1"
+        self.createPuAtNodePossition(channels, num_pu_node1, width, [0])
+        
+        #print "Create PU around node2"
+        self.createPuAtNodePossition(channels, num_pu_node2, width, [1])
+        
+        #print "Create PU around both nodes"
+        self.createPuAtNodePossition(channels, num_pu_both, width, [0,1])
+        
+        remaining_channels = len(channels)
+        #print "remaining_channels: %d" % remaining_channels
+        if remaining_channels < 1:
+            print "Error, not enough channels"
+            sys.exit()
+        
+        # distribute remaining channels over nodes
+        for chan in channels:
+            #print "Id: %d" % chan.getId()
+            for node in nodes:
+                node.appendChannels(chan)
+        channels = []
+        
 
     def selectCommonChannels(self, channels, nodes, num):
         # Select G commonly available channels
@@ -246,8 +343,7 @@ class Environment():
             sys.exit()
 
         return result
-
-
+    
     def checkForOverlappingChannel(self, nodes):
         overlappingChannelFound = False
         assert len(nodes) == 2
