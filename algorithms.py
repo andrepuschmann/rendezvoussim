@@ -1,7 +1,7 @@
 import numpy as np
 from time import sleep
 import sys
-
+from collections import defaultdict
 
 def getNextPrime(M=1, greaterOnly=False):
     def is_prime(n):
@@ -29,49 +29,32 @@ def getNextPrime(M=1, greaterOnly=False):
     return i
 
 
+
 class Rendezvous():
-    def __init__(self, name, nr_of_channels, verbose=True):
+    def __init__(self, name, channelset, verbose=True):
         self.name = name
-        self.nr_of_channels = int(nr_of_channels)
-        self.sequence = []
-        self.index = 0
+        self.channelset = channelset
+        self.M = self.channelset.get_max_num_channels()
+        self.N = self.channelset.getNumChannels()
         self.verbose = verbose
  
     def getName(self):
         return self.name
-        
-    def getStayTime(self):
-        return 1
 
-    """ returns channel number at current index in sequence """
-    def getNextIndex(self):
-        r = self.sequence[self.index]
-        self.index = (self.index + 1) % len(self.sequence)
-        return(r)
-        
-    def printSequence(self):
-        print "Current rendezvous sequence (len=%d) for %d channels:" % (len(self.sequence), self.nr_of_channels)
-        for i in self.sequence:
-            print "%d " % i,
-        print ""
-        
     def trace(self, message=''):
         if self.verbose: print "   %s:\t%s" % (self.name, message)           
 
-    def __str__(self):
-        return "%s is!!!" % (self.name)
-
 
 class RandomRendezvous(Rendezvous):
-    def __init__(self, nr_of_channels, verbose):
-        Rendezvous.__init__(self, "Random", nr_of_channels, verbose)
+    def __init__(self, channelset, verbose):
+        Rendezvous.__init__(self, "Random", channelset, verbose)
     
     """ override base class function, return random channel number between 0 and number of channels """
-    def getNextIndex(self):
-        #print "nr of channels: %d" % self.nr_of_channels
-        r = np.random.randint(0, self.nr_of_channels) # draw random number between 0 and nr_of_channels
+    def getNextChannel(self):
+        #print "num channels: %d" % self.N
+        r = np.random.randint(0, self.N) # draw random number between 0 and nr_of_channels
         #print "rand: %d" % r
-        return(r)
+        return (self.channelset.getChannelByIndex(r))
 
 
 
@@ -163,43 +146,43 @@ class SequenceRendezvous(Rendezvous):
 
 
 class JSHoppingRendezvous(Rendezvous):
-    def __init__(self, nr_of_channels, verbose):
-        Rendezvous.__init__(self, "JSHopping", nr_of_channels, verbose)
+    def __init__(self, channelset, verbose):
+        Rendezvous.__init__(self, "JSHopping", channelset, verbose)
         
         # initialize algorithm
-        self.M = int(nr_of_channels)
-        self.P = getNextPrime(self.M)
-        self.r = np.random.randint(1, self.M + 1)
+        self.P = getNextPrime(self.N)
+        self.r = np.random.randint(1, self.N + 1)
         self.i = np.random.randint(1, self.P + 1)
         self.t = 0 # current time slot
-        #self.test1()
+        #self.test()
 
     # Simple functional test using the parameter given in the paper
     def test(self):
         print "JSPattern test"
-        M = 4
+        N = 4
         r = 1
         i = 3
-        P = getNextPrime(M)
-        round = self.JSHopping(M, P, r, i)
+        P = getNextPrime(N)
+        round = self.JSHopping(N, P, r, i)
         print round
 
     def update_r(self):
-        self.r = ((self.r + 1) % (self.M + 1))
+        self.r = ((self.r + 1) % (self.N + 1))
         if self.r == 0: self.r = 1
         self.trace("New r: %d" % self.r)
 
     def update_i(self):
-        self.i = ((self.i + 1) % (self.M + 1))
+        self.i = ((self.i + 1) % (self.N + 1))
         if self.i == 0: self.i = 1
         self.trace("New i: %d" % self.i)
     
     # Just call JumpStay here
-    def getNextIndex(self):
+    def getNextChannel(self):
         c = self.JumpStay()
         # in simulation, channels start with index 0, do remapping
         c -= 1
-        return c
+        #print "c: %d" % c
+        return (self.channelset.getChannelByIndex(c))
         
     # Technically, this is the inner loop of the JS_2 algorithm
     def JumpStay(self):
@@ -208,19 +191,19 @@ class JSHoppingRendezvous(Rendezvous):
             self.trace("Update r in this round")
             self.update_r()
         # Update i every 3*M*P slots
-        if (self.t % (3 * self.M * self.P)) == 0:
+        if (self.t % (3 * self.N * self.P)) == 0:
             self.trace("Update i in this round")
             self.update_i()
         
         # get channel for this specific slot
-        c = self.JSHopping(self.M, self.P, self.r, self.i, self.t)
+        c = self.JSHopping(self.N, self.P, self.r, self.i, self.t)
         self.trace("Slot: %d" % self.t)
         self.trace("CH Index: %d" % c)
         self.t += 1 # increment slot counter
         return c
 
     # Generate one round JS hopping sequence for the given paramaters
-    def JSHopping(self, M, P, r, i, slot=-1):
+    def JSHopping(self, N, P, r, i, slot=-1):
         nextround = []
         for t in range(3*P):
             t = t % (3*P)   # each round takes 3P timeslots
@@ -230,9 +213,9 @@ class JSHoppingRendezvous(Rendezvous):
             else:
                 # stay pattern
                 j = r
-            if (j > M):
+            if (j > N):
                 l = j
-                j = ((j - 1) % M) + 1 # remapping
+                j = ((j - 1) % N) + 1 # remapping
                 
             nextround.append(int(j))
         if len(nextround) != 3*P:
@@ -255,52 +238,52 @@ class ExtendedJSHoppingRendezvous(Rendezvous):
 
 
 class CRSeqRendezvous(Rendezvous):
-    def __init__(self, nr_of_channels, verbose):
-        Rendezvous.__init__(self, "CRSEQ", nr_of_channels, verbose)
+    def __init__(self, channelset, verbose):
+        Rendezvous.__init__(self, "CRSEQ", channelset, verbose)
         # initialize algorithm
-        self.M = int(nr_of_channels)
-        self.P = getNextPrime(self.M)
+        self.P = getNextPrime(self.N)
         self.t = 0 # current time slot
-        self.trace("self.M: %d" % self.M)
+        self.trace("self.N: %d" % self.N)
         self.trace("self.P: %d" % self.P)
         #self.test2()
 
     # Simple functional test using the parameter given in the paper
     def test(self):
         print "CRSEQPattern test"
-        M = 20
-        print "M: %d" % M
-        P = getNextPrime(M)
+        N = 20
+        print "N: %d" % N
+        P = getNextPrime(N)
         print "P: %d" % P
         
         # Run CRSEQ for 3*M slots
         seq = []
         for i in range(3*P-1):
-            c = self.CRSEQHopping(M, P, i)
+            c = self.CRSEQHopping(N, P, i)
             seq.append(c)
         print seq
         sys.exit()
         
     def test2(self):
         print "CRSEQ test"
-        M = 20
-        print "M: %d" % M
-        P = getNextPrime(M)
+        N = 20
+        print "N: %d" % N
+        P = getNextPrime(N)
         print "P: %d" % P        
-        c = self.CRSEQHopping(M, P, 739674)
+        c = self.CRSEQHopping(N, P, 739674)
         print c
         sys.exit()
         
     
-    def getNextIndex(self):
-        c = self.CRSEQHopping(self.M, self.P, self.t)
+    def getNextChannel(self):
+        c = self.CRSEQHopping(self.N, self.P, self.t)
         self.t += 1
         self.trace("Next channel index: %d" % c)
-        return c
+        #return c
+        return (self.channelset.getChannelByIndex(c))
 
-    def CRSEQHopping(self, M, P, slot):
+    def CRSEQHopping(self, N, P, slot):
         self.trace("-----")
-        self.trace("M: %d" % M)
+        self.trace("N: %d" % N)
         self.trace("P: %d" % P)
         self.trace("Slot: %d" % slot)
         maxSeqLen = P * (3 * P - 1)
@@ -322,16 +305,18 @@ class CRSeqRendezvous(Rendezvous):
         self.trace("Tj: %d" % Tj)
         
         if subSeqSlot < (2 * P - 1):
-            return Tj % M
+            return Tj % N
         else:
-            return j % M
+            return j % N
 
 
 class ExhaustiveSearch(Rendezvous):
-    def __init__(self, node_id, nr_of_channels, verbose):
-        Rendezvous.__init__(self, "EX", nr_of_channels, verbose)
+    def __init__(self, node_id, channels, verbose):
+        Rendezvous.__init__(self, "EX", channels, verbose)
+        
         self.isMaster = False
-        self.M = int(nr_of_channels)
+        self.channels = channels
+            
         self.masterChannel = -1
         self.slaveChannel = -1
         self.t = -1
@@ -341,22 +326,21 @@ class ExhaustiveSearch(Rendezvous):
         else:
             self.trace("I am a slave")
 
-    def getNextIndex(self):
+    def getNextChannel(self):
         self.t = self.t + 1
         if self.isMaster:
-            # Stay in one channel for M slots to make sure the slave catches
+            # Stay in one channel for N slots to make sure the slave catches
             # up, choose next channel in every Mth slot            
-            if (self.t % (self.M)) == 0:
-                self.masterChannel = (self.masterChannel + 1) % self.M
-
+            if (self.t % (self.N)) == 0:
+                self.masterChannel = (self.masterChannel + 1) % self.N
             self.trace("masterChannel: %d" % self.masterChannel)
-            return self.masterChannel
+            return self.channels.getChannelByIndex(self.masterChannel)
         else:
             # Choose new channel in each slot and iterate through available 
             # channels, starting with lowest frequency            
-            self.slaveChannel = (self.slaveChannel + 1) % self.M
+            self.slaveChannel = (self.slaveChannel + 1) % self.N
             self.trace("slaveChannel: %d" % self.slaveChannel)
-            return self.slaveChannel
+            return self.channels.getChannelByIndex(self.slaveChannel)
 
 
 class RandomizedExhaustiveSearch(Rendezvous):
@@ -409,3 +393,158 @@ class RandomizedExhaustiveSearch(Rendezvous):
                 self.createSlaveChannelSet()
 
             return self.slaveChannel
+
+
+class HeuristicallyGuidedRandomizedExhaustiveSearch(Rendezvous):
+    def __init__(self, node_id, channels, verbose):
+        Rendezvous.__init__(self, "HGREX", channels.get_max_num_channels(), verbose)
+        
+        self.isMaster = False
+        self.channels = channels
+        
+        self.M = self.channels.get_max_num_channels()
+        self.N = self.channels.getNumChannels()
+        
+        print "M: %d" % self.M
+        print "N: %d" % self.N
+        
+        
+        for i in range(self.N):
+            print "id at pos %d: %d" % (i, self.channels.getChannelByIndex(i).getId())
+        
+        self.masterHoppingSequence = []
+        #self.slaveHoppingSequence = []
+        
+        self.sortLargestGapFirst()
+        
+        
+        
+        
+        #self.createMasterChannelSet()
+        self.createSlaveChannelSet()
+        print self.masterHoppingSequence
+        print self.slaveChannelSet
+        
+        #sys.exit()
+        
+        self.currentMasterIndex = -1
+        self.currentSlaveIndex = -1
+        self.t = -1
+        if node_id == 1:
+            self.isMaster = True
+            self.trace("I am the master")   
+        else:
+            self.trace("I am a slave")
+           
+    def sortLargestGapFirst(self):
+        # sort channels according to gap size, largest gap first
+        print "test"
+        #channel_dict = {}
+        channel_dict = defaultdict(list)
+        last_id = -2
+        current_gap_size = 1
+        for i in range(self.channels.getNumChannels()):
+            print "id at pos %d: %d" % (i, self.channels.getChannelByIndex(i).getId())
+            current_id = self.channels.getChannelByIndex(i).getId()
+            #print "current_id: %d" % current_id
+            #print "last_id: %d" % last_id
+            if current_id == (last_id + 1):
+                #print "found consecutive channels"
+                current_gap_size += 1
+            elif last_id == -2:
+                last_id = current_id
+            else:
+                print "gap size of previous n channels was: %d" % current_gap_size
+                last_gap = []
+                #last_gap = [id for i in xrange(current_gap_size)
+                for i in xrange(current_gap_size):
+                    last_gap.append(last_id - i)
+                # append sorted list to dictionary of channels
+                channel_dict[current_gap_size].append(sorted(last_gap))
+                current_gap_size = 1
+            last_id = current_id
+            print "---"
+        
+        # Handle last channels
+        if current_gap_size:
+            #print "gap size at end: %d" % current_gap_size
+            last_gap = []
+            for i in xrange(current_gap_size):
+                last_gap.append(last_id - i)
+            channel_dict[current_gap_size].append(sorted(last_gap))
+                
+        
+        # Write dict, sorted by keys, to list
+        keylist = channel_dict.keys()
+        keylist.sort(reverse=True)
+        for key in keylist:
+            print "key: %d" % key
+            print channel_dict[key]
+            for idlist in channel_dict[key]:
+                for id in idlist: 
+                    self.masterHoppingSequence.append(self.channels.getChannelById(id).getId())
+        
+        print "-----------"
+        print channel_dict
+        
+
+    def createSlaveChannelSet(self):
+        self.slaveChannelSet = [x for x in range(self.N)]
+
+    def getNextChannel(self):
+        self.t = self.t + 1
+        if self.isMaster:
+            # Stay in one channel for M slots to make sure the slave catches
+            # up, choose next channel in every Mth slot
+            '''
+            if self.N != len(self.masterHoppingSequence):
+                print "master:"
+                print self.masterHoppingSequence
+                print "self.N: %d" % self.N
+                print "len(self.masterHoppingSequence): %d" % len(self.masterHoppingSequence)
+            '''
+            assert self.N == len(self.masterHoppingSequence)
+            
+            
+            if (self.t % (self.N)) == 0:
+                
+                self.currentMasterIndex = (self.currentMasterIndex + 1) % self.N
+                print "Update master channel, id is: %d" % self.masterHoppingSequence[self.currentMasterIndex]
+                #index = self.t % self.N
+                #self.currentMasterChannel = self.masterHoppingSequence[index]
+            
+            channelId = self.masterHoppingSequence[self.currentMasterIndex]
+            
+            
+            print "index: %d" % channelId
+            
+            
+            
+            
+            return self.channels.getChannelById(channelId)
+            '''
+            if (self.t % (self.M)) == 0:
+                self.currentMasterChannel = (self.masterChannel + 1) % self.M
+
+            self.trace("masterChannel: %d" % self.masterChannel)
+            return self.masterChannel
+            
+                        
+            
+            if (self.t % (self.N)) == 0:
+                self.masterChannel = np.random.choice(self.masterChannelSet)
+                self.masterChannelSet.remove(self.masterChannel)
+                if not self.masterChannelSet:
+                    self.createMasterChannelSet()
+
+            self.trace("masterChannel: %d" % self.masterChannel)
+            return self.masterChannel
+            '''
+        else:
+            # Choose new channel in each slot and iterate through available 
+            # channels, starting with lowest frequency            
+            self.currentSlaveIndex = (self.currentSlaveIndex + 1) % self.N
+            self.trace("slaveChannel: %d" % self.currentSlaveIndex)
+            #return self.currentSlaveIndex            
+           
+            return self.channels.getChannelByIndex(self.currentSlaveIndex)
