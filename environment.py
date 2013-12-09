@@ -14,47 +14,100 @@ class Channel():
         return self.name
 
 
+class ChannelSet():
+    def __init__(self, verbose=True):
+        self.name = "ChannelSet"
+        self.channels = []
+        self.max_num_channels = -1
+        self.verbose = verbose
+        
+    def add_channel(self, channel):
+        if len(self.channels) != self.max_num_channels:
+            self.channels.append(channel)
+        else:
+            self.trace(0, "Failed to add channel with id %d, maximum number reached." % channel.getId())
+
+    def setMaxNumChannels(self, num):
+        self.max_num_channels = num
+    
+    def getNumChannels(self):
+        return len(self.channels)
+        
+    def get_max_num_channels(self):
+        return self.max_num_channels
+        
+    def hasChannelWithId(self, id):
+        for chan in self.channels:
+            if chan.getId() == id:
+                return True
+        return False
+        
+    def hasChannel(self, channel):
+        if channel in self.channels:
+            return True
+        return False
+    
+    def getChannelsAsList(self):
+        return self.channels
+        
+    def getChannelById(self, id):
+        for chan in self.channels:
+            if chan.getId() is id:
+                return chan
+                
+    def sortById(self):
+        self.channels = sorted(self.channels, key=lambda chan: chan.getId())
+        
+    def getChannelByIndex(self, pos):
+        return self.channels[pos]
+        
+    def printChannels(self):
+        self.trace(0, "My channels: %d" % self.getNumChannels())
+        for i in self.channels:
+            self.trace(message="  %s, id: %d" % (i.getName(), id(i)))        
+
+    def trace(self, slot=0, message=''):
+        if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
+        
+        
+
 class Node():
     def __init__(self, id, verbose=True):
         self.id = id
         self.name = "Node " + str(id)
-        self.channels = []
+        self.channelset = ChannelSet(verbose)
         self.verbose = verbose
-
+    
+    def getId(self):
+        return self.id
+    
     def configure(self, max_num_channels=-1):
-        self.max_num_channels = max_num_channels
+        self.channelset.setMaxNumChannels(max_num_channels)
 
     def initialize(self, algorithm=None, has_random_replace=False):
         self.trace(0, "Try to initialize node")
-        self.num_channels = len(self.channels) # The actual number of accessible channels
         self.has_random_replace = has_random_replace
         
-        algorithm = algorithm.strip()
-        
-        # If random replace is turned on, we pass max_num_channels to the algorithm 
-        # instead of the actual number of channels of a node
-        if self.has_random_replace == True:
-            num_channels_algorithm = self.max_num_channels
-        else:
-            num_channels_algorithm = self.num_channels
-                
-        if self.num_channels > 0 and algorithm != None:
+        algorithm = algorithm.strip()               
+        if algorithm != None:
             if algorithm == "random":
-                self.algorithm = RandomRendezvous(num_channels_algorithm, self.verbose)
+                self.algorithm = RandomRendezvous(self.channelset, self.verbose)
             elif algorithm == "seq":
-                self.algorithm = SequenceRendezvous(num_channels_algorithm, False)
+                self.algorithm = SequenceRendezvous(self.channelset, False)
                 #self.algorithm = SequenceRendezvous(num_channels_algorithm, True)
                 self.algorithm.printSequence()
             elif algorithm == "mc":
-                self.algorithm = ModularClockRendezvous(num_channels_algorithm, self.verbose)
+                self.algorithm = ModularClockRendezvous(self.channelset, self.verbose)
             elif algorithm == "js":
-                self.algorithm = JSHoppingRendezvous(num_channels_algorithm, self.verbose)
+                self.algorithm = JSHoppingRendezvous(self.channelset, self.verbose)
             elif algorithm == "crseq":
-                self.algorithm = CRSeqRendezvous(num_channels_algorithm, self.verbose)
+                self.algorithm = CRSeqRendezvous(self.channelset, self.verbose)
             elif algorithm == "ex":
-                self.algorithm = ExhaustiveSearch(self.id, num_channels_algorithm, self.verbose)
+                self.algorithm = ExhaustiveSearch(self.id, self.channelset, self.verbose)
             elif algorithm == "rex":
-                self.algorithm = RandomizedExhaustiveSearch(self.id, num_channels_algorithm, self.verbose)
+                self.algorithm = RandomizedExhaustiveSearch(self.id, self.channelset, self.verbose)
+            elif algorithm == "hgrex":
+                self.algorithm = HeuristicallyGuidedRandomizedExhaustiveSearch(self.id, self.channelset, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (algorithm)
                 sys.exit()   
@@ -63,33 +116,25 @@ class Node():
 
 
     def appendChannels(self, channels):
-        self.channels.append(channels)
-    
-    def printChannels(self):
-        self.trace(0, "My channels: %d" % len(self.channels))
-        for i in self.channels:
-            self.trace(message="  %s, id: %d" % (i.getName(), id(i)))
-            
-    def getChannels(self):
-        return self.channels
+        self.channelset.add_channel(channels)
+
+
+    def getChannelSet(self):
+        return self.channelset
+
 
     def getNextChannel(self, slot=0):
         self.trace(slot, "Determine next channel ...")
-        r = self.algorithm.getNextIndex()
-        if self.has_random_replace:
-            if r > (self.num_channels - 1):
-                r = np.random.randint(0, self.num_channels)
-        
+        r = self.algorithm.getNextChannel()
         # check validity
-        if r > (self.num_channels - 1):
-            print "Error, too large channel index"
+        if self.channelset.hasChannel(r) == False:
+            print "Node %s doesn't have channel with id: %d" % (self.name, r.getId())
             sys.exit()
-        self.trace(slot, "Next channel has index %d, id of channel is %d" % (r, self.channels[r].getId()))
-        return self.channels[r].getId()
+        self.trace(slot, "Next channel has id: %d" % r.getId())
+        return r
         
     def trace(self, slot=0, message=''):
         if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
-
 
 
 
@@ -98,6 +143,7 @@ class Environment():
         self.name = "Environment"
         self.verbose = verbose
         self.max_num_channels = max_num_channels
+        self.num_overlap_channels = num_overlap_channels
 
         # start environment creation
         self.nodes = self.createNodes(num_nodes, verbose)
@@ -111,17 +157,20 @@ class Environment():
 
         # sort channel indices by ID
         for node in self.nodes:
-            node.channels = sorted(node.channels, key=lambda chan: chan.getId())
+            node.channelset.sortById()
+            node.channelset.printChannels()
+            
+        # sanity check, there should be at least one overlapping channel
+        self.checkForOverlappingChannel(self.nodes)
 
-        for node in self.nodes:
-            node.printChannels()
+        #sys.exit()
 
 
     def createNodes(self, num_nodes, verbose):
         # Create nodes and initialize them with empty channel list
         nodes = []
         for n in range(num_nodes):
-            nodes.append(Node(n + 1, verbose))
+            nodes.append(Node(n, verbose))
         return nodes
 
 
@@ -170,7 +219,7 @@ class Environment():
     def calculateChannelStatistics(self):
         result = []
         for node in self.nodes:
-            channels = node.getChannels()
+            channels = node.channelset.getChannelsAsList()
             chan_list = [chan.getId() for chan in channels]
             binarymap = [0 for x in range(self.max_num_channels)] # initialize map to zero
             # iterate over channel list and mark available channels
@@ -197,9 +246,25 @@ class Environment():
             sys.exit()
 
         return result
-    
+
+
+    def checkForOverlappingChannel(self, nodes):
+        overlappingChannelFound = False
+        assert len(nodes) == 2
+        # Check if both nodes have at least one channel in common
+        channelSet = nodes[0].getChannelSet()
+        for i in range(channelSet.getNumChannels()):
+            if nodes[1].getChannelSet().hasChannel(channelSet.getChannelByIndex(i)) == True:
+                overlappingChannelFound = True
+
+        if not overlappingChannelFound:
+            print "No overlapping channel found, please check environment configuration"
+            sys.exit()
+
+
     def getOverlappingChannelsAsBitArray(self):
         return self.calculateChannelStatistics()[2]
+
 
     def getNodes(self):
         return self.nodes
