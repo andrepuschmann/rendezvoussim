@@ -141,19 +141,25 @@ class Node():
 class Environment():
     def __init__(self, model, max_num_channels, num_overlap_channels, num_nodes, theta, verbose):
         self.name = "Environment"
-        self.verbose = verbose
+        self.model = model
         self.max_num_channels = max_num_channels
         self.num_overlap_channels = num_overlap_channels
+        self.num_nodes = num_nodes
+        self.theta = theta
+        self.verbose = verbose
+        self.channel_maps = [] # store for all channel maps that have been created in this env
 
+
+    def initialize(self):
         # start environment creation
-        self.nodes = self.createNodes(num_nodes, verbose)
-        channels = self.createChannels(max_num_channels)
+        self.nodes = self.createNodes(self.num_nodes, self.verbose)
+        channels = self.createChannels(self.max_num_channels)
 
-        if model == "symmetric":
-            self.selectCommonChannels(channels, self.nodes, max_num_channels)
-        elif model == "asymmetric":
-            self.selectCommonChannels(channels, self.nodes, num_overlap_channels)
-            self.selectIndividualChannels(channels, self.nodes, max_num_channels, num_overlap_channels, theta)
+        if self.model == "symmetric":
+            self.selectCommonChannels(channels, self.nodes, self.max_num_channels)
+        elif self.model == "asymmetric":
+            self.selectCommonChannels(channels, self.nodes, self.num_overlap_channels)
+            self.selectIndividualChannels(channels, self.nodes, self.max_num_channels, self.num_overlap_channels, self.theta)
 
         # sort channel indices by ID
         for node in self.nodes:
@@ -162,9 +168,10 @@ class Environment():
             
         # sanity check, there should be at least one overlapping channel
         self.checkForOverlappingChannel(self.nodes)
-
+        
+        # store channel map
+        self.channel_maps.append(self.getOverlappingChannelsAsBitArray())
         #sys.exit()
-
 
     def createNodes(self, num_nodes, verbose):
         # Create nodes and initialize them with empty channel list
@@ -273,7 +280,13 @@ class Environment():
     def getName(self):
         return self.name
 
+    def writeChannelMapsToFile(self, filename='channelmap.dat'):
+        # Write the array to disk
+        with file(filename, 'w') as outfile:
+            outfile.write('# In line in this file corresponds to the state of a channel, please see environment.py for details.\n')
+            for data_slice in self.channel_maps:
+                outfile.write('# Next iteration\n')
+                np.savetxt(outfile, data_slice, fmt='%-.2f')
 
     def trace(self, slot=0, message=''):
         if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
-

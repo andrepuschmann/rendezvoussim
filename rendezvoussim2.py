@@ -71,9 +71,13 @@ def main():
     for alg in algorithms:
         ttr[alg] = MinMaxMonitor()
     
+    # Create simulation environment
+    env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, verbose)
+    
     for run in range(num_iterations):
-        # Create simulation environment
-        env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, verbose)
+        # reinitialize in each iteration (causes creation of new channels and nodes)
+        env.initialize()
+        
         nodes = env.getNodes()
 
         # Start rendezvous asynchronously, select node and number of iterations randomly
@@ -100,7 +104,7 @@ def main():
 
                 # Check if all nodes have selected the same channel
                 if isEqual(current_channels):
-                    #print "Rendezvous after %d slots in Channel %d." % (slot, current_channels[0])
+                    #print "Rendezvous after %d slots in Channel %d." % (slot, current_channels[0].getId())
                     ttr[alg].tally(slot)
                     connected = True
                 slot += 1
@@ -118,6 +122,9 @@ def main():
         else:
             print "No statistics collected."
 
+    
+    env.writeChannelMapsToFile()
+    
 
 if __name__ == "__main__":
     main()
