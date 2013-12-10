@@ -33,7 +33,7 @@ class ChannelSet():
     def getNumChannels(self):
         return len(self.channels)
         
-    def get_max_num_channels(self):
+    def getMaxNumChannels(self):
         return self.max_num_channels
         
     def hasChannelWithId(self, id):
@@ -49,6 +49,12 @@ class ChannelSet():
     
     def getChannelsAsList(self):
         return self.channels
+        
+    def getChannelIdsAsList(self):
+        lst = []
+        for chan in self.channels:
+            lst.append(chan.getId())
+        return lst
         
     def getChannelById(self, id):
         for chan in self.channels:
@@ -103,11 +109,17 @@ class Node():
             elif algorithm == "crseq":
                 self.algorithm = CRSeqRendezvous(self.channelset, self.verbose)
             elif algorithm == "ex":
-                self.algorithm = ExhaustiveSearch(self.id, self.channelset, self.verbose)
+                self.algorithm = LowestIdFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
             elif algorithm == "rex":
                 self.algorithm = RandomizedExhaustiveSearch(self.id, self.channelset, self.verbose)
-            elif algorithm == "hgrex":
-                self.algorithm = HeuristicallyGuidedRandomizedExhaustiveSearch(self.id, self.channelset, self.verbose)
+            elif algorithm == "lidfex":
+                self.algorithm = LowestIdFirstExhaustiveSearch(self.id, self.channelset, self.verbose)    
+            elif algorithm == "hidfex":
+                self.algorithm = HighestIdFirstExhaustiveSearch(self.id, self.channelset, self.verbose)    
+            elif algorithm == "lgfex":
+                self.algorithm = LargestGapFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
+            elif algorithm == "sgfex":
+                self.algorithm = SmallestGapFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (algorithm)
                 sys.exit()   

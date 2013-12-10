@@ -34,8 +34,8 @@ class Rendezvous():
     def __init__(self, name, channelset, verbose=True):
         self.name = name
         self.channelset = channelset
-        self.M = self.channelset.get_max_num_channels()
-        self.N = self.channelset.getNumChannels()
+        self.M = channelset.getMaxNumChannels()
+        self.N = channelset.getNumChannels()
         self.verbose = verbose
  
     def getName(self):
@@ -310,123 +310,14 @@ class CRSeqRendezvous(Rendezvous):
             return j % N
 
 
+
+# Base class for all Exhaustive Search variants
 class ExhaustiveSearch(Rendezvous):
-    def __init__(self, node_id, channels, verbose):
-        Rendezvous.__init__(self, "EX", channels, verbose)
-        
+    def __init__(self, name, node_id, channelset, verbose=True):
+        Rendezvous.__init__(self, name, channelset, verbose)
         self.isMaster = False
-        self.channels = channels
-            
-        self.masterChannel = -1
-        self.slaveChannel = -1
-        self.t = -1
-        if node_id == 1:
-            self.isMaster = True
-            self.trace("I am the master")
-        else:
-            self.trace("I am a slave")
-
-    def getNextChannel(self):
-        self.t = self.t + 1
-        if self.isMaster:
-            # Stay in one channel for N slots to make sure the slave catches
-            # up, choose next channel in every Mth slot            
-            if (self.t % (self.N)) == 0:
-                self.masterChannel = (self.masterChannel + 1) % self.N
-            self.trace("masterChannel: %d" % self.masterChannel)
-            return self.channels.getChannelByIndex(self.masterChannel)
-        else:
-            # Choose new channel in each slot and iterate through available 
-            # channels, starting with lowest frequency            
-            self.slaveChannel = (self.slaveChannel + 1) % self.N
-            self.trace("slaveChannel: %d" % self.slaveChannel)
-            return self.channels.getChannelByIndex(self.slaveChannel)
-
-
-class RandomizedExhaustiveSearch(Rendezvous):
-    def __init__(self, node_id, nr_of_channels, verbose):
-        Rendezvous.__init__(self, "REX", nr_of_channels, verbose)
-        self.isMaster = False
-        self.M = int(nr_of_channels)
-        
-        self.createMasterChannelSet()
-        self.createSlaveChannelSet()
-        #print self.masterChannelSet
-        
-        #sys.exit()
-        
-        self.masterChannel = -1
-        self.slaveChannel = -1
-        self.t = -1
-        if node_id == 1:
-            self.isMaster = True
-            self.trace("I am the master")
-        else:
-            self.trace("I am a slave")
-            
-
-    def createMasterChannelSet(self):
-        self.masterChannelSet = [x for x in range(self.M)]
-
-    def createSlaveChannelSet(self):
-        self.slaveChannelSet = [x for x in range(self.M)]
-
-    def getNextIndex(self):
-        self.t = self.t + 1
-        if self.isMaster:
-            # Stay in one channel for M slots to make sure the slave catches
-            # up, choose next channel in every Mth slot
-            if (self.t % (self.M)) == 0:
-                self.masterChannel = np.random.choice(self.masterChannelSet)
-                self.masterChannelSet.remove(self.masterChannel)
-                if not self.masterChannelSet:
-                    self.createMasterChannelSet()
-
-            self.trace("masterChannel: %d" % self.masterChannel)
-            return self.masterChannel
-        else:
-            # Choose new channel in each slot and iterate through available 
-            # channels, starting with lowest frequency            
-            self.slaveChannel = np.random.choice(self.slaveChannelSet)
-            self.slaveChannelSet.remove(self.slaveChannel)
-            if not self.slaveChannelSet:
-                self.createSlaveChannelSet()
-
-            return self.slaveChannel
-
-
-class HeuristicallyGuidedRandomizedExhaustiveSearch(Rendezvous):
-    def __init__(self, node_id, channels, verbose):
-        Rendezvous.__init__(self, "HGREX", channels.get_max_num_channels(), verbose)
-        
-        self.isMaster = False
-        self.channels = channels
-        
-        self.M = self.channels.get_max_num_channels()
-        self.N = self.channels.getNumChannels()
-        
-        print "M: %d" % self.M
-        print "N: %d" % self.N
-        
-        
-        for i in range(self.N):
-            print "id at pos %d: %d" % (i, self.channels.getChannelByIndex(i).getId())
-        
         self.masterHoppingSequence = []
-        #self.slaveHoppingSequence = []
-        
-        self.sortLargestGapFirst()
-        
-        
-        
-        
-        #self.createMasterChannelSet()
-        self.createSlaveChannelSet()
-        print self.masterHoppingSequence
-        print self.slaveChannelSet
-        
-        #sys.exit()
-        
+        self.slaveHoppingSequence = []
         self.currentMasterIndex = -1
         self.currentSlaveIndex = -1
         self.t = -1
@@ -435,17 +326,48 @@ class HeuristicallyGuidedRandomizedExhaustiveSearch(Rendezvous):
             self.trace("I am the master")   
         else:
             self.trace("I am a slave")
-           
-    def sortLargestGapFirst(self):
-        # sort channels according to gap size, largest gap first
-        print "test"
-        #channel_dict = {}
+
+
+    def getNextChannel(self):
+        self.t = self.t + 1
+        if self.isMaster:
+            # Stay in one channel for N slots to make sure the slave catches
+            # up, choose next channel in every Nth slot (Fixme: adapt logic, N is not always constant)
+            assert self.N == len(self.masterHoppingSequence)
+            if (self.t % (self.N)) == 0:
+                self.currentMasterIndex = (self.currentMasterIndex + 1) % self.N
+                self.trace("Update master channel, id is: %d" % self.masterHoppingSequence[self.currentMasterIndex])
+            
+            channelId = self.masterHoppingSequence[self.currentMasterIndex]
+            return self.channelset.getChannelById(channelId)
+
+        else:
+            # Choose new channel in each slot and iterate through available 
+            # channels, starting with lowest frequency
+            assert self.N == len(self.slaveHoppingSequence)
+            self.currentSlaveIndex = (self.currentSlaveIndex + 1) % self.N
+            self.trace("slaveChannel: %d" % self.currentSlaveIndex)
+            
+            channelId = self.slaveHoppingSequence[self.currentSlaveIndex]
+            return self.channelset.getChannelById(channelId)
+
+
+    def getSortedListById(self, channelset, reverse=False):
+        # iterate through channels, add indices to sorted list
+        unsort_list = []
+        for i in range(channelset.getNumChannels()):
+            unsort_list.append(channelset.getChannelByIndex(i).getId())
+        return sorted(unsort_list, reverse=reverse)
+
+
+    def getSortedListByGapSize(self, channelset, reverse=False):
+        # sort channels according to gap size
         channel_dict = defaultdict(list)
         last_id = -2
         current_gap_size = 1
-        for i in range(self.channels.getNumChannels()):
-            print "id at pos %d: %d" % (i, self.channels.getChannelByIndex(i).getId())
-            current_id = self.channels.getChannelByIndex(i).getId()
+        for i in range(channelset.getNumChannels()):
+            #print "id at pos %d: %d" % (i, channelset.getChannelByIndex(i).getId())
+            current_id = channelset.getChannelByIndex(i).getId()
             #print "current_id: %d" % current_id
             #print "last_id: %d" % last_id
             if current_id == (last_id + 1):
@@ -454,7 +376,7 @@ class HeuristicallyGuidedRandomizedExhaustiveSearch(Rendezvous):
             elif last_id == -2:
                 last_id = current_id
             else:
-                print "gap size of previous n channels was: %d" % current_gap_size
+                #print "gap size of previous n channels was: %d" % current_gap_size
                 last_gap = []
                 #last_gap = [id for i in xrange(current_gap_size)
                 for i in xrange(current_gap_size):
@@ -463,7 +385,7 @@ class HeuristicallyGuidedRandomizedExhaustiveSearch(Rendezvous):
                 channel_dict[current_gap_size].append(sorted(last_gap))
                 current_gap_size = 1
             last_id = current_id
-            print "---"
+            #print "---"
         
         # Handle last channels
         if current_gap_size:
@@ -472,79 +394,87 @@ class HeuristicallyGuidedRandomizedExhaustiveSearch(Rendezvous):
             for i in xrange(current_gap_size):
                 last_gap.append(last_id - i)
             channel_dict[current_gap_size].append(sorted(last_gap))
-                
         
         # Write dict, sorted by keys, to list
         keylist = channel_dict.keys()
-        keylist.sort(reverse=True)
+        keylist.sort(reverse=reverse)
+        target = []
         for key in keylist:
-            print "key: %d" % key
-            print channel_dict[key]
+            #print "key: %d" % key
+            #print channel_dict[key]
             for idlist in channel_dict[key]:
                 for id in idlist: 
-                    self.masterHoppingSequence.append(self.channels.getChannelById(id).getId())
+                    target.append(channelset.getChannelById(id).getId())
         
-        print "-----------"
-        print channel_dict
-        
+        #print "-----------"
+        #print channel_dict
+        return target
 
-    def createSlaveChannelSet(self):
-        self.slaveChannelSet = [x for x in range(self.N)]
 
-    def getNextChannel(self):
-        self.t = self.t + 1
+    def getRandomList(self, channelset):
+        lst = self.channelset.getChannelIdsAsList()       
+        return np.random.permutation(lst).tolist()
+
+
+# A randomized, but exhaustive version
+class RandomizedExhaustiveSearch(ExhaustiveSearch):
+    def __init__(self, node_id, channels, verbose):
+        ExhaustiveSearch.__init__(self, "REX", node_id, channels, verbose)
+
         if self.isMaster:
-            # Stay in one channel for M slots to make sure the slave catches
-            # up, choose next channel in every Mth slot
-            '''
-            if self.N != len(self.masterHoppingSequence):
-                print "master:"
-                print self.masterHoppingSequence
-                print "self.N: %d" % self.N
-                print "len(self.masterHoppingSequence): %d" % len(self.masterHoppingSequence)
-            '''
-            assert self.N == len(self.masterHoppingSequence)
-            
-            
-            if (self.t % (self.N)) == 0:
-                
-                self.currentMasterIndex = (self.currentMasterIndex + 1) % self.N
-                print "Update master channel, id is: %d" % self.masterHoppingSequence[self.currentMasterIndex]
-                #index = self.t % self.N
-                #self.currentMasterChannel = self.masterHoppingSequence[index]
-            
-            channelId = self.masterHoppingSequence[self.currentMasterIndex]
-            
-            
-            print "index: %d" % channelId
-            
-            
-            
-            
-            return self.channels.getChannelById(channelId)
-            '''
-            if (self.t % (self.M)) == 0:
-                self.currentMasterChannel = (self.masterChannel + 1) % self.M
-
-            self.trace("masterChannel: %d" % self.masterChannel)
-            return self.masterChannel
-            
-                        
-            
-            if (self.t % (self.N)) == 0:
-                self.masterChannel = np.random.choice(self.masterChannelSet)
-                self.masterChannelSet.remove(self.masterChannel)
-                if not self.masterChannelSet:
-                    self.createMasterChannelSet()
-
-            self.trace("masterChannel: %d" % self.masterChannel)
-            return self.masterChannel
-            '''
+            self.masterHoppingSequence = self.getRandomList(channels)
         else:
-            # Choose new channel in each slot and iterate through available 
-            # channels, starting with lowest frequency            
-            self.currentSlaveIndex = (self.currentSlaveIndex + 1) % self.N
-            self.trace("slaveChannel: %d" % self.currentSlaveIndex)
-            #return self.currentSlaveIndex            
-           
-            return self.channels.getChannelByIndex(self.currentSlaveIndex)
+            self.slaveHoppingSequence = self.getRandomList(channels)
+
+
+# Four heuristically guided variants
+class LowestIdFirstExhaustiveSearch(ExhaustiveSearch):
+    def __init__(self, node_id, channels, verbose):
+        ExhaustiveSearch.__init__(self, "LIDFEX", node_id, channels, verbose)
+
+        # Sort channels in accending order according to channel ID (normal EX algorithm)
+        if self.isMaster:
+            self.masterHoppingSequence = self.getSortedListById(channels, reverse=False)
+            #print "i am master"
+            #print self.masterHoppingSequence
+        else:
+            self.slaveHoppingSequence = self.getSortedListById(channels, reverse=False)
+            #print "i am slave"
+            #print self.slaveHoppingSequence
+
+
+class HighestIdFirstExhaustiveSearch(ExhaustiveSearch):
+    def __init__(self, node_id, channels, verbose):
+        ExhaustiveSearch.__init__(self, "HIDFEX", node_id, channels, verbose)
+
+        # Sort channels in decending order according to channel ID
+        if self.isMaster:
+            self.masterHoppingSequence = self.getSortedListById(channels, reverse=True)
+        else:
+            self.slaveHoppingSequence = self.getSortedListById(channels, reverse=True)
+
+
+class SmallestGapFirstExhaustiveSearch(ExhaustiveSearch):
+    def __init__(self, node_id, channels, verbose):
+        ExhaustiveSearch.__init__(self, "SGFEX", node_id, channels, verbose)
+
+        # Sort channels in accending order according to gap size
+        if self.isMaster:
+            self.masterHoppingSequence = self.getSortedListByGapSize(channels, reverse=False)
+            #print "i am master"
+            #print self.masterHoppingSequence
+        else:
+            self.slaveHoppingSequence = self.getSortedListByGapSize(channels, reverse=False)
+            #print "i am slave"
+            #print self.slaveHoppingSequence
+
+
+class LargestGapFirstExhaustiveSearch(ExhaustiveSearch):
+    def __init__(self, node_id, channels, verbose):
+        ExhaustiveSearch.__init__(self, "LGFEX", node_id, channels, verbose)
+
+        # Sort channels in decending order according to gap size
+        if self.isMaster:
+            self.masterHoppingSequence = self.getSortedListByGapSize(channels, reverse=True)
+        else:
+            self.slaveHoppingSequence = self.getSortedListByGapSize(channels, reverse=True)
