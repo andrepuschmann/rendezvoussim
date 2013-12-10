@@ -168,7 +168,7 @@ class Environment():
         self.pu_width = 5
         
         self.scenario = "random"
-        self.scenario = "deterministic"
+        #self.scenario = "deterministic"
 
     def initialize(self):
         # start environment creation
