@@ -33,7 +33,7 @@ class ChannelSet():
     def getNumChannels(self):
         return len(self.channels)
         
-    def get_max_num_channels(self):
+    def getMaxNumChannels(self):
         return self.max_num_channels
         
     def hasChannelWithId(self, id):
@@ -49,6 +49,12 @@ class ChannelSet():
     
     def getChannelsAsList(self):
         return self.channels
+        
+    def getChannelIdsAsList(self):
+        lst = []
+        for chan in self.channels:
+            lst.append(chan.getId())
+        return lst
         
     def getChannelById(self, id):
         for chan in self.channels:
@@ -103,11 +109,17 @@ class Node():
             elif algorithm == "crseq":
                 self.algorithm = CRSeqRendezvous(self.channelset, self.verbose)
             elif algorithm == "ex":
-                self.algorithm = ExhaustiveSearch(self.id, self.channelset, self.verbose)
+                self.algorithm = LowestIdFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
             elif algorithm == "rex":
                 self.algorithm = RandomizedExhaustiveSearch(self.id, self.channelset, self.verbose)
-            elif algorithm == "hgrex":
-                self.algorithm = HeuristicallyGuidedRandomizedExhaustiveSearch(self.id, self.channelset, self.verbose)
+            elif algorithm == "lidfex":
+                self.algorithm = LowestIdFirstExhaustiveSearch(self.id, self.channelset, self.verbose)    
+            elif algorithm == "hidfex":
+                self.algorithm = HighestIdFirstExhaustiveSearch(self.id, self.channelset, self.verbose)    
+            elif algorithm == "lgfex":
+                self.algorithm = LargestGapFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
+            elif algorithm == "sgfex":
+                self.algorithm = SmallestGapFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (algorithm)
                 sys.exit()   
@@ -141,28 +153,34 @@ class Node():
 class Environment():
     def __init__(self, model, max_num_channels, num_overlap_channels, num_nodes, theta, verbose):
         self.name = "Environment"
-        self.verbose = verbose
+        self.model = model
         self.max_num_channels = max_num_channels
         self.num_overlap_channels = num_overlap_channels
+        self.num_nodes = num_nodes
+        self.theta = theta
+        self.verbose = verbose
+        self.channel_maps = [] # store for all channel maps that have been created in this env
         
-        self.num_pu_node1 = 2
-        self.num_pu_node2 = 2
-        self.num_pu_both = 4
+        # BEER (3,3,4,5)
+        self.num_pu_node1 = 1
+        self.num_pu_node2 = 1
+        self.num_pu_both = 2
         self.pu_width = 5
         
         self.scenario = "random"
-        #self.scenario = "deterministic"
+        self.scenario = "deterministic"
 
+    def initialize(self):
         # start environment creation
-        self.nodes = self.createNodes(num_nodes, verbose)
-        channels = self.createChannels(max_num_channels)
+        self.nodes = self.createNodes(self.num_nodes, self.verbose)
+        channels = self.createChannels(self.max_num_channels)
 
-        if model == "symmetric":
-            self.selectCommonChannels(channels, self.nodes, max_num_channels)
-        elif model == "asymmetric":
+        if self.model == "symmetric":
+            self.selectCommonChannels(channels, self.nodes, self.max_num_channels)
+        elif self.model == "asymmetric":
             if self.scenario == "random":
-                self.selectCommonChannels(channels, self.nodes, num_overlap_channels)
-                self.selectIndividualChannels(channels, self.nodes, max_num_channels, num_overlap_channels, theta)
+                self.selectCommonChannels(channels, self.nodes, self.num_overlap_channels)
+                self.selectIndividualChannels(channels, self.nodes, self.max_num_channels, self.num_overlap_channels, self.theta)
             else:
                 self.placePu(channels, self.nodes, self.num_pu_node1, self.num_pu_node2, self.num_pu_both, self.pu_width)
 
@@ -173,9 +191,10 @@ class Environment():
             
         # sanity check, there should be at least one overlapping channel
         self.checkForOverlappingChannel(self.nodes)
-
+        
+        # store channel map
+        self.channel_maps.append(self.getOverlappingChannelsAsBitArray())
         #sys.exit()
-
 
     def createNodes(self, num_nodes, verbose):
         # Create nodes and initialize them with empty channel list
@@ -369,7 +388,13 @@ class Environment():
     def getName(self):
         return self.name
 
+    def writeChannelMapsToFile(self, filename='channelmap.dat'):
+        # Write the array to disk
+        with file(filename, 'w') as outfile:
+            outfile.write('# In line in this file corresponds to the state of a channel, please see environment.py for details.\n')
+            for data_slice in self.channel_maps:
+                outfile.write('# Next iteration\n')
+                np.savetxt(outfile, data_slice, fmt='%-.2f')
 
     def trace(self, slot=0, message=''):
         if self.verbose: print "%d: %s:\t%s" % (slot, self.name, message)
-
