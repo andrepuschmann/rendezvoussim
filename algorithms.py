@@ -478,3 +478,27 @@ class LargestGapFirstExhaustiveSearch(ExhaustiveSearch):
             self.masterHoppingSequence = self.getSortedListByGapSize(channels, reverse=True)
         else:
             self.slaveHoppingSequence = self.getSortedListByGapSize(channels, reverse=True)
+
+
+class EvenOddFirstExhaustiveSearch(ExhaustiveSearch):
+    def __init__(self, node_id, channels, verbose):
+        ExhaustiveSearch.__init__(self, "EOFEX", node_id, channels, verbose)
+
+        # Sort channels in decending order according to gap size
+        if self.isMaster:
+            self.masterHoppingSequence = self.getSortedListEvenOddFirst(channels, evenFirst=True)
+        else:
+            self.slaveHoppingSequence = self.getSortedListEvenOddFirst(channels, evenFirst=False)
+            
+    def getSortedListEvenOddFirst(self, channels, evenFirst=True):
+        lst = channels.getChannelIdsAsList()
+        #print lst
+        even = [x for x in lst if (x % 2) == 0]
+        odd = [x for x in lst if (x % 2) != 0]
+        #print even
+        #print odd
+        
+        if evenFirst:       
+            return (even + odd)
+        else:
+            return (odd + even)

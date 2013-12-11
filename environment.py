@@ -120,6 +120,8 @@ class Node():
                 self.algorithm = LargestGapFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
             elif algorithm == "sgfex":
                 self.algorithm = SmallestGapFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
+            elif algorithm == "eofex":
+                self.algorithm = EvenOddFirstExhaustiveSearch(self.id, self.channelset, self.verbose)
             else:
                 print "Rendezvous algorithm %s is not supported." % (algorithm)
                 sys.exit()   
