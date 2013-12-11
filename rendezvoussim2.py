@@ -21,8 +21,10 @@ def main():
                       help="How many channels are available")
     parser.add_option("-m", "--model", dest="model", default="symmetric",
                       help="Which channel model to use (symmetric or asymmetric)")
-    parser.add_option("-g", "--overlapping channels", dest="overlap_channels", type="int", default="5",
+    parser.add_option("-g", "--overlappingchannels", dest="overlap_channels", type="int", default="5",
                       help="How many channels are overlapping between nodes (only for asymmetric model)")
+    parser.add_option("-b", "--blockwidth", dest="block_width", type="int", default="1",
+                      help="The width (in channels) of a block")
     parser.add_option("-t", "--theta-parameter", dest="theta", type="float", default="1.0",
                       help="The theta parameter defined in Liu's paper. It is multiplied with M to determine the actual number of channels per node")
     parser.add_option("-n", "--nodes", dest="nodes", default=2,
@@ -52,6 +54,7 @@ def main():
     num_overlap_channels = int(options.overlap_channels)
     num_channels = int(options.channels)
     theta = options.theta
+    block_width = options.block_width
     # Reset number of overlapping to number of total channels in sync mode
     if num_overlap_channels != num_channels and model == 'symmetric':
         num_overlap_channels = num_channels
@@ -72,7 +75,7 @@ def main():
         ttr[alg] = MinMaxMonitor()
     
     # Create simulation environment
-    env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, verbose)
+    env = Environment(model, num_channels, num_overlap_channels, num_nodes, theta, block_width, verbose)
     
     for run in range(num_iterations):
         # reinitialize in each iteration (causes creation of new channels and nodes)

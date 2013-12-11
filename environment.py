@@ -151,24 +151,17 @@ class Node():
 
 
 class Environment():
-    def __init__(self, model, max_num_channels, num_overlap_channels, num_nodes, theta, verbose):
+    def __init__(self, model, max_num_channels, num_overlap_channels, num_nodes, theta, block_width, verbose):
         self.name = "Environment"
         self.model = model
         self.max_num_channels = max_num_channels
         self.num_overlap_channels = num_overlap_channels
         self.num_nodes = num_nodes
         self.theta = theta
+        self.block_width = block_width
         self.verbose = verbose
         self.channel_maps = [] # store for all channel maps that have been created in this env
-        
-        # BEER (3,3,4,5)
-        self.num_pu_node1 = 1
-        self.num_pu_node2 = 1
-        self.num_pu_both = 2
-        self.pu_width = 5
-        
-        self.scenario = "random"
-        #self.scenario = "deterministic"
+
 
     def initialize(self):
         # start environment creation
@@ -178,11 +171,8 @@ class Environment():
         if self.model == "symmetric":
             self.selectCommonChannels(channels, self.nodes, self.max_num_channels)
         elif self.model == "asymmetric":
-            if self.scenario == "random":
-                self.selectCommonChannels(channels, self.nodes, self.num_overlap_channels)
-                self.selectIndividualChannels(channels, self.nodes, self.max_num_channels, self.num_overlap_channels, self.theta)
-            else:
-                self.placePu(channels, self.nodes, self.num_pu_node1, self.num_pu_node2, self.num_pu_both, self.pu_width)
+            self.selectCommonChannels(channels, self.nodes, self.num_overlap_channels, self.block_width)
+            self.selectIndividualChannels(channels, self.nodes, self.max_num_channels, self.num_overlap_channels, self.theta, self.block_width)
 
         # sort channel indices by ID
         for node in self.nodes:
@@ -195,6 +185,7 @@ class Environment():
         # store channel map
         self.channel_maps.append(self.getOverlappingChannelsAsBitArray())
         #sys.exit()
+
 
     def createNodes(self, num_nodes, verbose):
         # Create nodes and initialize them with empty channel list
@@ -219,114 +210,94 @@ class Environment():
         self.trace(0, "Pool has %d channels" % len(pool))
         return pool
 
+
     def getChannelWithId(self, channels, id):
         for chan in channels:
             #print "id is: %d" % chan.getId()
             if chan.getId() is id:
                 return chan
 
+
     def removeChannelWithId(self, channels, id):
         for chan in channels:
             if chan.getId() == id:
                 channels.remove(chan)
+        
 
-
-    # This function creates PUs in the sourrounding of a node making the
-    # channels unavailable for that node, but available for the other one
-    def createPuAtNodePossition(self, channels, num, width, id):
-        # determine other node where channels are available
-        id_available = []
-        for node in self.nodes:
-            if node.getId() not in id:
-                id_available.append(node.getId())
-                
-        #print id_available
-
-        for i in range(num):
-            # Select center channel randomly
-            chan_ids = []
-            c = np.random.choice(channels)
-            chan_ids.append(c.getId())
-
-            # select upper and lower neighbor(s)
-            num_upper_lower = int((width - 1) / 2)
-            #print "num_upper_lower: %d" % num_upper_lower
-            for x in range(1, num_upper_lower + 1):
-                #print "x: %d" % x
-                lower_neighbor = c.getId() - x
-                upper_neighbor = c.getId() + x
-                chan_ids.append(lower_neighbor)
-                chan_ids.append(upper_neighbor)
-                #print "remove lower_neighbor: %d" % lower_neighbor
-                #print "remove upper_neighbor: %d" % upper_neighbor
-
-            # Try to remove all channels 
-            for id in chan_ids:
-                if len(channels) > self.num_overlap_channels:
-                    #print "id: %d" % id
-                    chan = self.getChannelWithId(channels, id)
-                    if chan:
-                        for node in id_available:
-                            self.nodes[node].appendChannels(chan)
-                        self.trace(0, "Channel %d is PU channel %d" % (chan.getId(), i + 1))
-                        self.removeChannelWithId(channels, id)
-                else:
-                    print "Stop PU creation due to lack of channels"
-
-            #sys.exit()
-
-
-    def placePu(self, channels, nodes, num_pu_node1, num_pu_node2, num_pu_both, width):
+    def selectCommonChannels(self, channels, nodes, num, width):
+        # Select G commonly available channels, try to satisfy block width
+        num_blocks = int(np.ceil(num / float(width)))
+        #print "num: %d" % num
         #print "width: %d" % width
-        #print "num_pu_node1: %d" % num_pu_node1
-        #print "num_pu_node2: %d" % num_pu_node2
-        #print "num_pu_both: %d" % num_pu_both
+        #print "num_blocks: %d" % num_blocks
         
-        
-        #print "Create PU around node1"
-        self.createPuAtNodePossition(channels, num_pu_node1, width, [0])
-        
-        #print "Create PU around node2"
-        self.createPuAtNodePossition(channels, num_pu_node2, width, [1])
-        
-        #print "Create PU around both nodes"
-        self.createPuAtNodePossition(channels, num_pu_both, width, [0,1])
-        
-        remaining_channels = len(channels)
-        #print "remaining_channels: %d" % remaining_channels
-        if remaining_channels < 1:
-            print "Error, not enough channels"
-            sys.exit()
-        
-        # distribute remaining channels over nodes
-        for chan in channels:
-            #print "Id: %d" % chan.getId()
-            for node in nodes:
-                node.appendChannels(chan)
-        channels = []
-        
+        chan_ids = []
+        for i in range(num_blocks):
+            block = self.selectBlockOfChannels(channels, width)
+            for id in block:
+                chan_ids.append(id)
 
-    def selectCommonChannels(self, channels, nodes, num):
-        # Select G commonly available channels
-        for i in range(num):
-            c = np.random.choice(channels)
-            self.trace(0, "Channel %d is %d. common channel" % (c.getId(), i + 1))
-            # append to each nodes' channel list
-            for node in nodes:
-                node.appendChannels(c)
-            channels.remove(c)
+        # make sure not to have too many channels
+        if len(chan_ids) > num:
+            # sort first, then trim 
+            chan_ids = sorted(chan_ids)
+            num_trim = len(chan_ids) - num
+            chan_ids = chan_ids[:-num_trim]
+
+        # add channels to each node
+        for id in chan_ids:
+            chan = self.getChannelWithId(channels, id)
+            if chan:
+                for node in nodes:
+                    node.appendChannels(chan)
+                self.removeChannelWithId(channels, id)
 
 
-    def selectIndividualChannels(self, channels, nodes, num_channels, num_overlap_channels, theta):
+    # Selects block of neighboring channels with specified width
+    def selectBlockOfChannels(self, channels, width):
+        chan_ids = []
+        c = np.random.choice(channels)
+        #print "c: %d" % c.getId()
+        chan_ids.append(c.getId())
+
+        # select upper and lower neighbor(s)
+        lower_counter = 1
+        upper_counter = 1
+        for i in range(1, width):
+            if i % 2 == 0:
+                # if even, we remove the lower neighbor
+                lower_neighbor = c.getId() - lower_counter
+                #print "remove lower_neighbor: %d" % lower_neighbor
+                chan_ids.append(lower_neighbor)
+                lower_counter +=1
+            else:
+                # if odd, we remove the upper neighbor
+                upper_neighbor = c.getId() + upper_counter
+                #print "remove upper_neighbor: %d" % upper_neighbor
+                chan_ids.append(upper_neighbor)
+                upper_counter += 1
+
+        # the upper selection process may select ids that are not sane, like -1, remove them
+        chan_ids = [x for x in chan_ids if x >= 0]
+        return chan_ids
+
+
+    def selectIndividualChannels(self, channels, nodes, num_channels, num_overlap_channels, theta, width):
         # Distribute remaining channels over nodes
         num_missing = int(np.ceil((num_channels * theta) - num_overlap_channels))
+        num_blocks = num_missing / width
+        
         for node in nodes:
-            for n in range(num_missing):
+            for n in range(num_blocks):
                 if channels:
-                    c = np.random.choice(channels)
-                    self.trace(0, "Channel %d is individual channel for node %d" % (c.getId(), n))
-                    node.appendChannels(c)
-                    channels.remove(c)
+                    block = self.selectBlockOfChannels(channels, width)
+                    #print block
+                    for id in block:
+                        chan = self.getChannelWithId(channels, id)
+                        if chan:
+                            self.trace(0, "Channel %d is individual channel for node %d" % (chan.getId(), node.getId()))
+                            node.appendChannels(chan)
+                            channels.remove(chan)
                 else:
                     print "Warning: M not large enough to satisfy N=M*theta!"
                     pass
@@ -362,7 +333,8 @@ class Environment():
             sys.exit()
 
         return result
-    
+
+
     def checkForOverlappingChannel(self, nodes):
         overlappingChannelFound = False
         assert len(nodes) == 2
