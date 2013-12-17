@@ -338,24 +338,26 @@ class ExhaustiveSearch(Rendezvous):
 
             
     def getNextChannelMaster(self):
-        # Stay in one channel for N slots to make sure the slave catches
-        # up, choose next channel in every Nth slot (Fixme: adapt logic, N is not always constant)
+        # Choose new channel in each slot and iterate through available 
+        # channels, starting with lowest index
         sequence_len = len(self.masterHoppingSequence)
-        #assert self.N == sequence_len
-        if (self.t % sequence_len) == 0:
-            self.currentMasterIndex = (self.currentMasterIndex + 1) % sequence_len
-            self.trace("Update master channel, id is: %d" % self.masterHoppingSequence[self.currentMasterIndex])
+        self.currentMasterIndex = (self.currentMasterIndex + 1) % sequence_len
+        self.trace("masterChannel: %d" % self.currentMasterIndex)
         
         channelId = self.masterHoppingSequence[self.currentMasterIndex]
         return self.channelset.getChannelById(channelId)
+
         
     def getNextChannelSlave(self):
-        # Choose new channel in each slot and iterate through available 
-        # channels, starting with lowest frequency
+        # Stay in one channel for N slots to make sure the slave catches
+        # up, choose next channel in every Nth slot
+        # FIXME: We assume N to be the same for master and slave here
+        # As the actual number of channels of the master is not know, we can
+        # use N as an upper bound here to make sure, we really hit the master
         sequence_len = len(self.slaveHoppingSequence)
-        #assert self.N == sequence_len
-        self.currentSlaveIndex = (self.currentSlaveIndex + 1) % sequence_len
-        self.trace("slaveChannel: %d" % self.currentSlaveIndex)
+        if (self.t % self.N) == 0:
+            self.currentSlaveIndex = (self.currentSlaveIndex + 1) % sequence_len
+            self.trace("Update master channel, id is: %d" % self.slaveHoppingSequence[self.currentSlaveIndex])
         
         channelId = self.slaveHoppingSequence[self.currentSlaveIndex]
         return self.channelset.getChannelById(channelId)
