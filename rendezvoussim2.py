@@ -50,7 +50,7 @@ def main():
     model = options.model
     models = ['symmetric', 'asymmetric']
     if model not in models:
-        print "Channel model %s no supported." % model
+        print "Channel model %s not supported." % model
         sys.exit()
     
     num_overlap_channels = int(options.overlap_channels)
