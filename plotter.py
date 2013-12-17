@@ -9,6 +9,9 @@ tui_blue = (0,0.2,0.349)
 tui_orange = (1.0,0.475,0)
 tui_lightblue = (0.706,0.863,0.863)
 line_markers = ["-", "-s", "-^", "-D", "-o"]
+line_markers = ["-", "--", "-.", ":", "."]
+
+
 
 class Plotter(object):
     def __init__(self, filename="dummy.dat"):
@@ -25,6 +28,11 @@ class Plotter(object):
         self.xlim = 0
         self.ylim = 0
         self.legendpos = 'upper right'
+        fig = plt.figure(1)
+        ax = fig.add_subplot(111)
+        ax.patch.set_alpha(0.3)
+        ax.patch.set_facecolor(tui_blue)
+        #ax.patch.set_facecolor('0.9')
 
     def add_xaxis(self, data):
         self.x = data
@@ -40,6 +48,12 @@ class Plotter(object):
             self.xlim = x
         if y:
             self.ylim = y
+            
+    def set_xticks(self, start, stop, stepsize):
+		self.xtick_start = start
+		self.xtick_stop = stop
+		self.xtick_stepsize = stepsize
+		plt.xticks(np.arange(self.xtick_start, self.xtick_stop, self.xtick_stepsize))
             
     def set_legend_pos(self, pos):
         self.legendpos = pos
@@ -62,7 +76,9 @@ class Plotter(object):
         return (self.linestyle, self.linecolor)
 
     def decorate_plots(self):
-        plt.legend(loc=self.legendpos, shadow=False)
+        legend = plt.legend(loc=self.legendpos, shadow=False)
+        frame = legend.get_frame()
+        frame.set_facecolor('0.90')
         plt.xlabel(self.xlabel)
         plt.ylabel(self.ylabel)
         plt.xlim(self.xlim)
