@@ -59,9 +59,9 @@ class RandomRendezvous(Rendezvous):
 
 
 class ModularClockRendezvous(Rendezvous):
-    def __init__(self, nr_of_channels, verbose):
-        Rendezvous.__init__(self, "ModularClock", nr_of_channels, verbose)
-        self.nr_of_channels = int(nr_of_channels)
+    def __init__(self, channelset, verbose):
+        Rendezvous.__init__(self, "ModularClock", channelset, verbose)
+        self.nr_of_channels = channelset.getNumChannels()
         self.p = getNextPrime(self.nr_of_channels)
         self.j_old = np.random.randint(0, self.nr_of_channels) # pick first channel randomly
         self.renew_rate()
@@ -72,14 +72,15 @@ class ModularClockRendezvous(Rendezvous):
     def renew_rate(self):
         self.r = np.random.randint(0, self.p) # pick hopping "rate"
         self.trace("rate: %d" % self.r)
-    
-    def getNextIndex(self):
+
+    def getNextChannel(self):
         # renew rate every 2*p slots
         self.trace("Currslot: %d" % self.current_slot)
         if self.current_slot > (2*self.p):
             self.renew_rate()
             self.current_slot = 1
-        self.current_slot += 1
+        else:
+            self.current_slot += 1
         
         # calculate new channel
         j_new = (self.j_old + self.r) % self.p
@@ -90,8 +91,8 @@ class ModularClockRendezvous(Rendezvous):
         else:
             c = j_new % self.nr_of_channels
             self.trace("c: %d" % c)
-        self.j_old = j_new # overwrite old value
-        return c
+        self.j_old = j_new # overwrite old value       
+        return (self.channelset.getChannelByIndex(c))
 
 class SequenceRendezvous(Rendezvous):
     def __init__(self, nr_of_channels, use_preset=False):
@@ -331,25 +332,33 @@ class ExhaustiveSearch(Rendezvous):
     def getNextChannel(self):
         self.t = self.t + 1
         if self.isMaster:
-            # Stay in one channel for N slots to make sure the slave catches
-            # up, choose next channel in every Nth slot (Fixme: adapt logic, N is not always constant)
-            assert self.N == len(self.masterHoppingSequence)
-            if (self.t % (self.N)) == 0:
-                self.currentMasterIndex = (self.currentMasterIndex + 1) % self.N
-                self.trace("Update master channel, id is: %d" % self.masterHoppingSequence[self.currentMasterIndex])
-            
-            channelId = self.masterHoppingSequence[self.currentMasterIndex]
-            return self.channelset.getChannelById(channelId)
-
+            return self.getNextChannelMaster()
         else:
-            # Choose new channel in each slot and iterate through available 
-            # channels, starting with lowest frequency
-            assert self.N == len(self.slaveHoppingSequence)
-            self.currentSlaveIndex = (self.currentSlaveIndex + 1) % self.N
-            self.trace("slaveChannel: %d" % self.currentSlaveIndex)
+            return self.getNextChannelSlave()
+
             
-            channelId = self.slaveHoppingSequence[self.currentSlaveIndex]
-            return self.channelset.getChannelById(channelId)
+    def getNextChannelMaster(self):
+        # Stay in one channel for N slots to make sure the slave catches
+        # up, choose next channel in every Nth slot (Fixme: adapt logic, N is not always constant)
+        sequence_len = len(self.masterHoppingSequence)
+        #assert self.N == sequence_len
+        if (self.t % sequence_len) == 0:
+            self.currentMasterIndex = (self.currentMasterIndex + 1) % sequence_len
+            self.trace("Update master channel, id is: %d" % self.masterHoppingSequence[self.currentMasterIndex])
+        
+        channelId = self.masterHoppingSequence[self.currentMasterIndex]
+        return self.channelset.getChannelById(channelId)
+        
+    def getNextChannelSlave(self):
+        # Choose new channel in each slot and iterate through available 
+        # channels, starting with lowest frequency
+        sequence_len = len(self.slaveHoppingSequence)
+        #assert self.N == sequence_len
+        self.currentSlaveIndex = (self.currentSlaveIndex + 1) % sequence_len
+        self.trace("slaveChannel: %d" % self.currentSlaveIndex)
+        
+        channelId = self.slaveHoppingSequence[self.currentSlaveIndex]
+        return self.channelset.getChannelById(channelId)
 
 
     def getSortedListById(self, channelset, reverse=False):
