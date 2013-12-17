@@ -30,5 +30,18 @@ def isEqual(iterator):
          return True
 
 
+def areNeighborChannels(channels):
+    assert len(channels) == 2
+   
+    # check upper neighbor
+    if channels[0].getId() == (channels[1].getId() + 1):
+        return True
+    # .. and lower neighbor
+    elif channels[0].getId() == (channels[1].getId() - 1):
+        return True
+    
+    return False
+
+
 def string_splitter(option, opt, value, parser):
     setattr(parser.values, option.dest, value.split(','))
