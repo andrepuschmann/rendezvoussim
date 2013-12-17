@@ -171,7 +171,7 @@ class Environment():
         channels = self.createChannels(self.max_num_channels)
 
         if self.model == "symmetric":
-            self.selectCommonChannels(channels, self.nodes, self.max_num_channels)
+            self.selectCommonChannels(channels, self.nodes, self.max_num_channels, self.block_width)
         elif self.model == "asymmetric":
             self.selectCommonChannels(channels, self.nodes, self.num_overlap_channels, self.block_width)
             self.selectIndividualChannels(channels, self.nodes, self.max_num_channels, self.num_overlap_channels, self.theta, self.block_width)
