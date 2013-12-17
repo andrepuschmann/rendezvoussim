@@ -5,7 +5,7 @@ Simulation of a various rendezvous algorithms
 import sys
 import numpy as np
 from environment import Environment
-from helper import MinMaxMonitor,isEqual,string_splitter
+from helper import MinMaxMonitor,isEqual,string_splitter,areNeighborChannels
 from optparse import OptionParser
 
 RANDOM_SEED = 42
@@ -33,6 +33,8 @@ def main():
                       help="How often to repeat the simulation")
     parser.add_option("-r", "--randomreplace", dest="randomreplace", default=False, action="store_true",
                       help="Whether to replace unavailable channels with random ones")
+    parser.add_option("-o", "--acdp", dest="acdp", type="float", default="0.0",
+                      help="Probability that a beacon received in an adjacent channel can be detected")
     parser.add_option("-u", "--tune", dest="tunetime", default=0.1,
                       help="How long tuning to given channel takes")
     parser.add_option("-s", "--summary", dest="summary", default=False,
@@ -55,6 +57,7 @@ def main():
     num_channels = int(options.channels)
     theta = options.theta
     block_width = options.block_width
+    acdp = options.acdp
     # Reset number of overlapping to number of total channels in sync mode
     if num_overlap_channels != num_channels and model == 'symmetric':
         num_overlap_channels = num_channels
@@ -86,7 +89,11 @@ def main():
         # Start rendezvous asynchronously, select node and number of iterations randomly
         async_slots = np.random.randint(1, num_channels * num_channels)
         #print "async_slots: %d" % async_slots
-        async_node = np.random.randint(0, num_nodes)
+        #async_node = np.random.randint(0, num_nodes)
+        async_node = 1 # Always let Node 1 start first to make sure this is the Master in centralized mode
+        
+        # Draw a random number that decides whether beacons on a neighbor channel can be detected
+        neighbordetect_random = np.random.random_sample()
         
         # Evaluate each algorithm using the same environment
         for alg in algorithms:
@@ -112,6 +119,20 @@ def main():
                     connected = True
                 slot += 1
                 
+                # Check if two nodes have selected direct neighbors
+                if areNeighborChannels(current_channels):
+                    # make sure we detect such a situation only with a certain probability
+                    if neighbordetect_random <= acdp:
+                        # check, assume rendezvous has happened on two adjacent channels
+                        # but for fairness add two more slots that are 
+                        # needed to beacon on upper and lower neighbor (worst case)
+                        slot += 2
+                        ttr[alg].tally(slot)
+                        connected = True
+                else:
+                    # FIXME: take probability of false alarm into account here
+                    pass
+                
                 # Sanity check, after MAX_SLOTS, stop process
                 if slot > MAX_SLOTS:
                     connected = True
@@ -120,8 +141,11 @@ def main():
         num_ok = ttr[alg].len()
         num_failed = num_iterations - ttr[alg].len()
         if ttr[alg].len():
-            # alg  num_channels   num_overlap_channels   num_iterations   num_ok   num_ok   ttr_min   ttr_mean   ttr_max   ttr_std
-            print "%s\t%d\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f" % (alg, num_channels, num_overlap_channels, num_iterations, num_ok, num_failed, ttr[alg].min(), ttr[alg].mean(), ttr[alg].max(), ttr[alg].std())
+            # alg  num_channels   num_overlap_channels   num_iterations   num_ok   num_ok   ttr_min   ttr_mean   ttr_max   ttr_std   block_width   acdp   theta
+            print "%s\t%d\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f" % \
+						(alg, num_channels, num_overlap_channels, num_iterations, num_ok, num_failed, 
+						ttr[alg].min(), ttr[alg].mean(), ttr[alg].max(), ttr[alg].std(),
+						block_width, acdp, theta)
         else:
             print "No statistics collected."
 
