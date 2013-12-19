@@ -35,7 +35,9 @@ labels = {"random":"Random",
           "js":"Jump-Stay",
           "crseq":"CRSEQ",
           "mc":"Modular Clock",
-          "ex":"Exhaustive Search"}
+          "ex":"Exhaustive Search",
+          "lidfex":"LIDF-EX",
+          "rex":"RP-EX"}
 
 def get_label(alg):
     try:
@@ -142,32 +144,45 @@ def main():
         #print len(mean_values[alg])
         max_values[alg] = [x[8] for x in raw_samples] # max values are in column 9
     
-    plot = Plotter()   
+    # Extract static variables, take first value in each row
+    M = data['max_num_channels'][0]
+    G = data['num_overlapping_channels'][0]
+    it = data['num_it'][0]
+    bw = data['bw'][0]
+    theta = data['theta'][0]
+    
+    plot = Plotter()
+    plot.set_size(120,80) # set image size in mm
     plot.add_xaxis(x_values)
     plot.set_axis_lim([min_x_value, max_x_value])
-    plot.set_xticks(min_x_value, max_x_value + 1, 1)
+    if max_x_value <= 20:
+        plot.set_xticks(min_x_value, max_x_value + 1, 1)
+    else:
+        plot.set_xticks(min_x_value, max_x_value + 1, 10)
 
     if x_axis_param == 'max_num_channels':
         plot.set_axis_labels('Total number of channels')
-        plot.set_legend_pos('upper left')    
+        plot.set_legend_pos('upper left')
     elif x_axis_param == 'num_overlapping_channels':
         plot.set_axis_labels('Number of overlapping channels')
         plot.set_legend_pos('upper right')
+        plot.set_title('M=%d, ' r'$\theta$' '=%.2f' % (M, theta))
     elif x_axis_param == 'bw':
         plot.set_axis_labels('Average channel block width')
         plot.set_legend_pos('upper left')
+        plot.set_title('M=%d, G=%d, ' r'$\theta$' '=%.2f' % (M, G, theta))
     
     if y_axis_param == 'ttr':
         # Plot mean value for each algorithm
         for alg in algs_to_plot:
             plot.add_data(mean_values[alg], label=get_label(alg))
-        plot.set_axis_labels(None, 'E[TTR]')
+        plot.set_axis_labels(None, 'Mean TTR [slots]')
         #plot.set_axis_lim([1,20], [0,2500])
     elif y_axis_param == 'mttr':
         # Plot max value for each algorithm
         for alg in algs_to_plot:
             plot.add_data(max_values[alg], label=get_label(alg))
-        plot.set_axis_labels(None, 'MTTR')
+        plot.set_axis_labels(None, 'Maximum TTR [slots]')
 
     if usetex:
         plot.set_use_tex()

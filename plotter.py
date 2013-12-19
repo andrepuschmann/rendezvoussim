@@ -25,17 +25,21 @@ class Plotter(object):
         self.linestyle = next(self.linecycler)
         self.xlabel = 'X'
         self.ylabel = 'Y'
+        self.title = ''
         self.xlim = 0
         self.ylim = 0
         self.legendpos = 'upper right'
-        fig = plt.figure(1)
-        ax = fig.add_subplot(111)
-        ax.patch.set_alpha(0.3)
-        ax.patch.set_facecolor(tui_blue)
+        self.fig = plt.figure(1)
+        self.ax = self.fig.add_subplot(111)
+        self.ax.patch.set_alpha(0.3)
+        self.ax.patch.set_facecolor(tui_blue)
         #ax.patch.set_facecolor('0.9')
 
     def add_xaxis(self, data):
         self.x = data
+        
+    def set_title(self, title):
+        self.title = title
         
     def set_axis_labels(self, x=None, y=None):
         if x:        
@@ -50,10 +54,10 @@ class Plotter(object):
             self.ylim = y
             
     def set_xticks(self, start, stop, stepsize):
-		self.xtick_start = start
-		self.xtick_stop = stop
-		self.xtick_stepsize = stepsize
-		plt.xticks(np.arange(self.xtick_start, self.xtick_stop, self.xtick_stepsize))
+        self.xtick_start = start
+        self.xtick_stop = stop
+        self.xtick_stepsize = stepsize
+        plt.xticks(np.arange(self.xtick_start, self.xtick_stop, self.xtick_stepsize))
             
     def set_legend_pos(self, pos):
         self.legendpos = pos
@@ -83,19 +87,23 @@ class Plotter(object):
         plt.ylabel(self.ylabel)
         plt.xlim(self.xlim)
         plt.ylim(self.ylim)
+        self.ax.set_title(self.title)
         
     def set_use_tex(self):
         self.decorate_plots()
         params = {'font.family': 'sans-serif',
                   'font.sans-serif': ['TeX Gyre Heros', 'Bitstream Vera Sans', 'Verdana','Tahoma'],
-                  'font.size': 12,
-                  'axes.labelsize': 12,
-                  'text.fontsize': 12,
-                  'legend.fontsize': 12,
-                  'xtick.labelsize': 12,
-                  'ytick.labelsize': 12,
+                  'font.size': 9,
+                  'axes.labelsize': 9,
+                  'text.fontsize': 9,
+                  'legend.fontsize': 9,
+                  'xtick.labelsize': 9,
+                  'ytick.labelsize': 9,
                   'text.usetex': True}
         plt.rcParams.update(params)
+
+    def set_size(self, width, height):
+        self.fig.set_size_inches(width / 2.54 / 10, height / 2.54 / 10)
 
     def show_plots(self):
         self.decorate_plots()
