@@ -498,9 +498,19 @@ class EvenOddFirstExhaustiveSearch(ExhaustiveSearch):
         # Sort channels in decending order according to gap size
         if self.isMaster:
             self.masterHoppingSequence = self.getSortedListEvenOddFirst(channels, evenFirst=True)
+            # some other variants for testing
+            #self.masterHoppingSequence = self.getSortedListEvenOddFirst(channels, evenFirst=False)
+            #self.masterHoppingSequence = self.getSortedListById(channels, reverse=False)
+            #self.masterHoppingSequence = self.getRandomList(channels)
+            #self.masterHoppingSequence = self.getSortedListEvenOddOnly(channels, evenOnly=False)
         else:
             self.slaveHoppingSequence = self.getSortedListEvenOddFirst(channels, evenFirst=False)
-            
+            # some other variants ..
+            #self.slaveHoppingSequence = self.getSortedListEvenOddFirst(channels, evenFirst=True)
+            #self.slaveHoppingSequence = self.getSortedListEvenOddOnly(channels, evenOnly=True)
+            #print "len: %d" % len(self.slaveHoppingSequence)
+            #self.slaveSecondarySequence = self.getRandomList(channels)
+
     def getSortedListEvenOddFirst(self, channels, evenFirst=True):
         lst = channels.getChannelIdsAsList()
         #print lst
@@ -513,3 +523,14 @@ class EvenOddFirstExhaustiveSearch(ExhaustiveSearch):
             return (even + odd)
         else:
             return (odd + even)
+
+
+    def getSortedListEvenOddOnly(self, channels, evenOnly=True):
+        lst = channels.getChannelIdsAsList()
+        if evenOnly:
+            even = [x for x in lst if (x % 2) == 0]
+            return even
+        else:
+            odd = [x for x in lst if (x % 2) != 0]
+            return odd
+
