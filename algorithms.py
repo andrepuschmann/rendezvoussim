@@ -93,6 +93,42 @@ class ModularClockRendezvous(Rendezvous):
             self.trace("c: %d" % c)
         self.j_old = j_new # overwrite old value       
         return (self.channelset.getChannelByIndex(c))
+        
+class ModifiedModularClockRendezvous(Rendezvous):
+    def __init__(self, channelset, verbose):
+        Rendezvous.__init__(self, "ModifiedModularClock", channelset, verbose)
+        rand = np.random.randint(self.N, 2*self.N)
+        self.p = getNextPrime(rand)
+        self.j_old = np.random.randint(0, self.N) # pick first channel randomly
+        self.renew_rate()
+        self.current_slot = 1
+        self.trace("prime: %d" % self.p)
+        self.trace("j_old: %d" % self.j_old)        
+
+    def renew_rate(self):
+        self.r = np.random.randint(0, self.p) # pick hopping "rate"
+        self.trace("rate: %d" % self.r)
+
+    def getNextChannel(self):
+        # renew rate every 2*p slots
+        self.trace("Currslot: %d" % self.current_slot)
+        if self.current_slot > (2*self.p):
+            self.renew_rate()
+            self.current_slot = 1
+        else:
+            self.current_slot += 1
+        
+        # calculate new channel
+        j_new = (self.j_old + self.r) % self.p
+        self.trace("j_new: %d" % j_new)
+        # wrap around if needed
+        if j_new < self.N:
+            c = j_new
+        else:
+            c = np.random.randint(0, self.N)
+            self.trace("c: %d" % c)
+        self.j_old = j_new # overwrite old value       
+        return (self.channelset.getChannelByIndex(c))
 
 class SequenceRendezvous(Rendezvous):
     def __init__(self, nr_of_channels, use_preset=False):
@@ -236,6 +272,57 @@ class ExtendedJSHoppingRendezvous(Rendezvous):
         Rendezvous.__init__(self, "EJS", nr_of_channels)
         self.sequence = self.createSequence()
         #print self.printSequence()
+
+
+class DRSeqRendezvous(Rendezvous):
+    def __init__(self, channelset, verbose):
+        Rendezvous.__init__(self, "DRSEQ", channelset, verbose)
+        # initialize algorithm
+        self.P = getNextPrime(self.N)
+        self.t = 0 # current time slot
+        self.trace("self.N: %d" % self.N)
+        self.trace("self.P: %d" % self.P)
+        #self.test()
+
+    # Simple functional test using the parameter given in the paper
+    def test(self):
+        print "DRSEQPattern test"
+        N = 5
+        print "N: %d" % N
+        
+        # Run CRSEQ for 2*N+1 slots
+        seq = []
+        for i in range(2*N+1):
+            c = self.DRSEQHopping(N, i)
+            seq.append(c)
+        print seq
+        sys.exit()
+    
+    def getNextChannel(self):
+        c = self.DRSEQHopping(self.N, self.t)
+        self.t += 1
+        self.trace("Next channel index: %d" % c)
+        return (self.channelset.getChannelByIndex(c))
+
+    def DRSEQHopping(self, N, slot):
+        self.trace("-----")
+        self.trace("N: %d" % N)
+        self.trace("Slot: %d" % slot)
+        maxSeqLen = 2 * N + 1
+        self.trace("maxSeqLen: %d" % maxSeqLen)
+
+        slot = slot % maxSeqLen
+        self.trace("slot: %d" % slot)
+        
+        if slot < N:
+            return slot % N
+        elif slot == N:
+            # empty slot e, return random channel
+            return np.random.randint(0, self.N)
+        else:
+            # return ID in decreasing order
+            #print slot
+            return (2*N-slot) % N
 
 
 class CRSeqRendezvous(Rendezvous):

@@ -104,8 +104,12 @@ class Node():
                 self.algorithm.printSequence()
             elif algorithm == "mc":
                 self.algorithm = ModularClockRendezvous(self.channelset, self.verbose)
+            elif algorithm == "mmc":
+                self.algorithm = ModifiedModularClockRendezvous(self.channelset, self.verbose)                
             elif algorithm == "js":
                 self.algorithm = JSHoppingRendezvous(self.channelset, self.verbose)
+            elif algorithm == "drseq":
+                self.algorithm = DRSeqRendezvous(self.channelset, self.verbose)
             elif algorithm == "crseq":
                 self.algorithm = CRSeqRendezvous(self.channelset, self.verbose)
             elif algorithm == "ex":
@@ -234,11 +238,17 @@ class Environment():
         #print "num_blocks: %d" % num_blocks
         
         chan_ids = []
-        for i in range(num_blocks):
-            block = self.selectBlockOfChannels(channels, width)
-            for id in block:
-                chan_ids.append(id)
-
+        if width == 1:
+            # add all channels
+            for c in channels:
+                chan_ids.append(c.getId())
+        else:        
+            for i in range(num_blocks):
+                block = self.selectBlockOfChannels(channels, width)
+                #print block
+                for id in block:
+                    chan_ids.append(id)
+        
         # make sure not to have too many channels
         if len(chan_ids) > num:
             # sort first, then trim 
