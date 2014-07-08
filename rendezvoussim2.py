@@ -14,11 +14,11 @@ MAX_SLOTS = 39999
 def main():
     usage = "usage: %prog [options] arg"
     parser = OptionParser(usage)
-    parser.add_option("-a", "--algorithm", dest="algorithm",
+    parser.add_option("-a", "--algorithm", dest="algorithm", default=["random"],
                       help="Which rendezvous algorithm to simulate",
                       type='string', action='callback', callback=string_splitter)
     parser.add_option("-c", "--channels", dest="channels", default=5,
-                      help="How many channels are available")
+                      help="How many channels are available (the M parameter)")
     parser.add_option("-m", "--model", dest="model", default="symmetric",
                       help="Which channel model to use (symmetric or asymmetric)")
     parser.add_option("-g", "--overlappingchannels", dest="overlap_channels", type="int", default="5",
@@ -143,9 +143,9 @@ def main():
         if ttr[alg].len():
             # alg  num_channels   num_overlap_channels   num_iterations   num_ok   num_ok   ttr_min   ttr_mean   ttr_max   ttr_std   block_width   acdp   theta
             print "%s\t%d\t%d\t%d\t%d\t%d\t%.2f\t%.2f\t%.2f\t%.2f\t%d\t%.2f\t%.2f" % \
-						(alg, num_channels, num_overlap_channels, num_iterations, num_ok, num_failed, 
-						ttr[alg].min(), ttr[alg].mean(), ttr[alg].max(), ttr[alg].std(),
-						block_width, acdp, theta)
+                        (alg, num_channels, num_overlap_channels, num_iterations, num_ok, num_failed, 
+                        ttr[alg].min(), ttr[alg].mean(), ttr[alg].max(), ttr[alg].std(),
+                        block_width, acdp, theta)
         else:
             print "No statistics collected."
 
