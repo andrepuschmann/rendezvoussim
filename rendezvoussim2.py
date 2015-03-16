@@ -146,6 +146,10 @@ def main():
                         (alg, num_channels, num_overlap_channels, num_iterations, num_ok, num_failed, 
                         ttr[alg].min(), ttr[alg].mean(), ttr[alg].max(), ttr[alg].std(),
                         block_width, acdp, theta)
+            # uncomment the three lines below to get the raw TTR values
+            #raw_values = ttr[alg].get()
+            #for i in raw_values:
+            #    print "%.2f" % (i)
         else:
             print "No statistics collected."
 
