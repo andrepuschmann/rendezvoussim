@@ -19,6 +19,8 @@ class MinMaxMonitor():
         return np.std(self.values)
     def reset(self):
         self.values = []
+    def get(self):
+        return self.values
 
 
 def isEqual(iterator):
