@@ -20,10 +20,6 @@ from pylab import *
 from itertools import cycle
 
 # some colors and line markers
-tui_green = (0,0.455,0.478)
-tui_blue = (0,0.2,0.349)
-tui_orange = (1.0,0.475,0)
-tui_lightblue = (0.706,0.863,0.863)
 line_markers = ["-", "-s", "-^", "-D", "-o"]
 line_markers = ["-", "--", "-.", ":", "."]
 
@@ -31,8 +27,7 @@ line_markers = ["-", "--", "-.", ":", "."]
 
 class Plotter(object):
     def __init__(self, filename="dummy.dat"):
-        self.colors = [tui_green, tui_blue, tui_orange]
-        #self.colors = [tui_blue]
+        self.colors = ['blue', 'red', 'green']
         self.colorcycler = cycle(self.colors)
         self.linecolor = next(self.colorcycler)
         self.used_colors = 0
@@ -48,7 +43,7 @@ class Plotter(object):
         self.fig = plt.figure(1)
         self.ax = self.fig.add_subplot(111)
         self.ax.patch.set_alpha(0.3)
-        self.ax.patch.set_facecolor(tui_blue)
+        self.ax.patch.set_facecolor('white')
         #ax.patch.set_facecolor('0.9')
 
     def add_xaxis(self, data):
@@ -78,13 +73,13 @@ class Plotter(object):
     def set_legend_pos(self, pos):
         self.legendpos = pos
 
-    def add_data(self, data, label='None', linestyle=None, color=tui_blue):       
+    def add_data(self, data, label='None', linestyle=None, color='blue'):       
         (linestyle, linecolor) = self.get_line_style_and_color()
         plt.plot(self.x, data, linestyle, linewidth=2.0, label=label, color=linecolor)
         #plt.errorbar(self.x, data, xerr=0.2, yerr=0.4)
         plt.grid=True
 
-    def add_vertical_line(self, pos, color=tui_green, style='dashed'):
+    def add_vertical_line(self, pos, color='black', style='dashed'):
         plt.axvline(x=pos, color=color, ls=style)
         
     def get_line_style_and_color(self):
