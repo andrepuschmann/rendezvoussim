@@ -29,7 +29,6 @@ def getNextPrime(M=1, greaterOnly=False):
     return i
 
 
-
 class Rendezvous():
     def __init__(self, name, channelset, verbose=True):
         self.name = name
@@ -44,7 +43,8 @@ class Rendezvous():
     def trace(self, message=''):
         if self.verbose: print "   %s:\t%s" % (self.name, message)           
 
-
+# Theis et al. "Rendezvous for Cognitive Radios" 
+# http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=5439004
 class RandomRendezvous(Rendezvous):
     def __init__(self, channelset, verbose):
         Rendezvous.__init__(self, "Random", channelset, verbose)
@@ -57,7 +57,8 @@ class RandomRendezvous(Rendezvous):
         return (self.channelset.getChannelByIndex(r))
 
 
-
+# Theis et al. "Rendezvous for Cognitive Radios" 
+# http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=5439004
 class ModularClockRendezvous(Rendezvous):
     def __init__(self, channelset, verbose):
         Rendezvous.__init__(self, "ModularClock", channelset, verbose)
@@ -93,7 +94,10 @@ class ModularClockRendezvous(Rendezvous):
             self.trace("c: %d" % c)
         self.j_old = j_new # overwrite old value       
         return (self.channelset.getChannelByIndex(c))
-        
+
+
+# Theis et al. "Rendezvous for Cognitive Radios" 
+# http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=5439004
 class ModifiedModularClockRendezvous(Rendezvous):
     def __init__(self, channelset, verbose):
         Rendezvous.__init__(self, "ModifiedModularClock", channelset, verbose)
@@ -130,6 +134,8 @@ class ModifiedModularClockRendezvous(Rendezvous):
         self.j_old = j_new # overwrite old value       
         return (self.channelset.getChannelByIndex(c))
 
+# DaSilva et al. "Sequence-Based Rendezvous for Dynamic Spectrum Access"
+# http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=4658263
 class SequenceRendezvous(Rendezvous):
     def __init__(self, nr_of_channels, use_preset=False):
         Rendezvous.__init__(self, "Sequence", nr_of_channels)
@@ -182,6 +188,7 @@ class SequenceRendezvous(Rendezvous):
         return sequence
 
 
+# Liu et al. "Jump-Stay Rendezvous Algorithm for Cognitive Radio Networks"
 class JSHoppingRendezvous(Rendezvous):
     def __init__(self, channelset, verbose):
         Rendezvous.__init__(self, "JSHopping", channelset, verbose)
@@ -274,6 +281,7 @@ class ExtendedJSHoppingRendezvous(Rendezvous):
         #print self.printSequence()
 
 
+# Yang et al. "Deterministic Rendezvous Scheme in Multichannel Access Networks"
 class DRSeqRendezvous(Rendezvous):
     def __init__(self, channelset, verbose):
         Rendezvous.__init__(self, "DRSEQ", channelset, verbose)
@@ -324,7 +332,7 @@ class DRSeqRendezvous(Rendezvous):
             #print slot
             return (2*N-slot) % N
 
-
+# Shin et al. "A Channel Rendezvous Scheme for Cognitive Radio Networks"
 class CRSeqRendezvous(Rendezvous):
     def __init__(self, channelset, verbose):
         Rendezvous.__init__(self, "CRSEQ", channelset, verbose)
@@ -400,6 +408,7 @@ class CRSeqRendezvous(Rendezvous):
 
 
 # Base class for all Exhaustive Search variants
+# Kondareddy et al. "Cognitive Radio Network setup without a Common Control Channel"
 class ExhaustiveSearch(Rendezvous):
     def __init__(self, name, node_id, channelset, verbose=True):
         Rendezvous.__init__(self, name, channelset, verbose)
