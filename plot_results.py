@@ -61,6 +61,8 @@ def main():
                       help="Read from file", metavar="FILE")
     parser.add_option("-o", "--output", dest="outfile",
                       help="Write output to file", metavar="FILE")
+    parser.add_option("-c", "--console", help="Plot results to console",
+                      action="store_true", dest="console", default=False)
     parser.add_option("-a", "--algorithm", dest="algorithm",
                       help="Which rendezvous algorithm to include in plot",
                       type='string', action='callback', callback=string_splitter)
@@ -74,6 +76,7 @@ def main():
     infile = options.infile
     outfile = options.outfile
     usetex = options.usetex
+    console = options.console
     algs_asked_to_plot = options.algorithm
 
     # Stop if x,y and input are not given
@@ -150,48 +153,76 @@ def main():
     it = data['num_it'][0]
     bw = data['bw'][0]
     theta = data['theta'][0]
-    
-    plot = Plotter()
-    plot.set_size(120,80) # set image size in mm
-    plot.add_xaxis(x_values)
-    plot.set_axis_lim([min_x_value, max_x_value])
-    if max_x_value <= 20:
-        plot.set_xticks(min_x_value, max_x_value + 1, 1)
+
+    if console:
+        # Print raw data to console
+        print "#%s\t" % x_axis_param,
+        for alg in algs_to_plot:
+            print "%s\t" % get_label(alg),
+        print ""
+            
+        # print results
+        for i in range(len(x_values)):
+            print "%2.0f\t" % x_values[i],
+            for alg in algs_to_plot:                
+                if y_axis_param == 'ttr':
+                    print "%2.2f\t" % mean_values[alg][i],
+                elif y_axis_param == 'mttr':
+                    print "%2.2f\t" % max_values[alg][i],
+                    
+            print ""           
     else:
-        plot.set_xticks(min_x_value, max_x_value + 1, 10)
+        plot = Plotter()
+        plot.set_size(120,80) # set image size in mm
+        plot.add_xaxis(x_values)
+        plot.set_axis_lim([min_x_value, max_x_value])
+        if max_x_value <= 20:
+            plot.set_xticks(min_x_value, max_x_value + 1, 1)
+        else:
+            plot.set_xticks(min_x_value, max_x_value + 1, 10)
 
-    if x_axis_param == 'max_num_channels':
-        plot.set_axis_labels('Total number of channels')
-        plot.set_legend_pos('upper left')
-    elif x_axis_param == 'num_overlapping_channels':
-        plot.set_axis_labels('Number of overlapping channels')
-        plot.set_legend_pos('upper right')
-        plot.set_title('M=%d, ' r'$\theta$' '=%.2f' % (M, theta))
-    elif x_axis_param == 'bw':
-        plot.set_axis_labels('Average channel block width')
-        plot.set_legend_pos('upper left')
-        plot.set_title('M=%d, G=%d, ' r'$\theta$' '=%.2f' % (M, G, theta))
-    
-    if y_axis_param == 'ttr':
-        # Plot mean value for each algorithm
-        for alg in algs_to_plot:
-            plot.add_data(mean_values[alg], label=get_label(alg))
-        plot.set_axis_labels(None, 'Mean TTR [slots]')
-        #plot.set_axis_lim([1,20], [0,2500])
-    elif y_axis_param == 'mttr':
-        # Plot max value for each algorithm
-        for alg in algs_to_plot:
-            plot.add_data(max_values[alg], label=get_label(alg))
-        plot.set_axis_labels(None, 'Maximum TTR [slots]')
-
-    if usetex:
-        plot.set_use_tex()
-
-    if outfile:
-        plot.save_plots(outfile)
+        if x_axis_param == 'max_num_channels':
+            plot.set_axis_labels('Total number of channels')
+            plot.set_legend_pos('upper left')
+        elif x_axis_param == 'num_overlapping_channels':
+            plot.set_axis_labels('Number of overlapping channels')
+            plot.set_legend_pos('upper right')
+            plot.set_title('M=%d, ' r'$\theta$' '=%.2f' % (M, theta))
+        elif x_axis_param == 'bw':
+            plot.set_axis_labels('Average channel block width')
+            plot.set_legend_pos('upper left')
+            plot.set_title('M=%d, G=%d, ' r'$\theta$' '=%.2f' % (M, G, theta))
         
-    if not usetex:
-        plot.show_plots()
+        print len(mean_values)
+        print len(x_values)
+        #sys.exit(0)
+        
+        if y_axis_param == 'ttr':
+            # Plot mean value for each algorithm
+            for alg in algs_to_plot:
+                print alg
+                print len(mean_values[alg])
+                print mean_values[alg]
+                print len(x_values)
+        
+                
+                plot.add_data(mean_values[alg], label=get_label(alg))
+            plot.set_axis_labels(None, 'Mean TTR [slots]')
+            #plot.set_axis_lim([1,20], [0,2500])
+        elif y_axis_param == 'mttr':
+            # Plot max value for each algorithm
+            for alg in algs_to_plot:
+                plot.add_data(max_values[alg], label=get_label(alg))
+            plot.set_axis_labels(None, 'Maximum TTR [slots]')
+
+        if usetex:
+            plot.set_use_tex()
+
+        if outfile:
+            plot.save_plots(outfile)
+            
+        if not usetex:
+            plot.show_plots()
 
 if __name__ == "__main__":
     main()
