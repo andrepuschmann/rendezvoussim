@@ -5,7 +5,7 @@ This is the source code of a simulation tool for benchmarking various
 link establishment algorithms, a.k.a. rendezvous algorithms.
 The main motivation behind creating this tool was the lack of a common
 simulation platform for the various kinds of algorithms published in the recent
-years. We hope this tool kind provide such a common tool.
+years. We hope RendezvousSim can be such a common tool.
 
 The simulation includes following algorithms:
 * Random Rendezvous
@@ -40,7 +40,7 @@ ex	20	20	1000	1000	0	1.00	10.71	20.00	5.77	1	0.00	1.00
 js	20	20	1000	1000	0	1.00	13.18	61.00	9.63	1	0.00	1.00
 ```
 
-Alternativly, one can also use the basic plotting facilties provided by the simulation.
+Alternatively, one can also use the basic plotting facilities provided by the simulation.
 
 ```
 $ ./run_symmetric.py > example.dat
